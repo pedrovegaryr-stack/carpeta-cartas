@@ -1,0 +1,289 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<title>Informe de precios frente al suelo</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,700;12..96,800&family=Manrope:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap">
+<style>
+:root{
+  color-scheme: dark;
+  --binder:#0f1f28; --binder-2:#132732; --pocket:#172e3a; --edge:rgba(214,236,240,.09);
+  --ink:#eee8dc; --muted:#9db0b4; --faint:#6d858c; --gold:#e8ba5e;
+  --good:#6fc28a; --warn:#e8ba5e; --bad:#e58a6b;
+  --display:"Bricolage Grotesque","Avenir Next",system-ui,sans-serif;
+  --body:"Manrope","Segoe UI",system-ui,sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html,body{margin:0;background:var(--binder)}
+body{color:var(--ink);font:15px/1.5 var(--body);padding-inline:16px}
+.wrap{max-width:1180px;margin:0 auto;padding-block:28px 60px}
+a{color:var(--gold)}
+.top{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+.eyebrow{font:600 12px var(--mono);letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}
+h1{font:800 clamp(30px,4.4vw,48px)/1 var(--display);letter-spacing:-.02em;margin:18px 0 8px;text-wrap:balance}
+.lead{color:var(--muted);max-width:70ch;margin:0}
+.kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:1px;background:var(--edge);border:1px solid var(--edge);border-radius:14px;overflow:hidden;margin-top:24px}
+.kpi{background:var(--binder-2);padding:16px}
+.kpi small{display:block;color:var(--muted);font-size:12px;letter-spacing:.06em;text-transform:uppercase}
+.kpi b{display:block;font:600 26px/1.1 var(--mono);margin-top:6px;font-variant-numeric:tabular-nums}
+.kpi span{display:block;color:var(--faint);font-size:12.5px;margin-top:4px}
+.kpi.hl b{color:var(--gold)}
+.bar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin:22px 0 12px}
+.btn{display:inline-flex;align-items:center;gap:6px;border-radius:8px;padding:9px 13px;font:700 13px var(--body);cursor:pointer;border:1px solid var(--edge);background:var(--pocket);color:var(--ink)}
+.btn:hover{border-color:rgba(214,236,240,.3)}
+.btn.primary{background:var(--gold);color:#1a1406;border-color:var(--gold)}
+.seg{display:flex;gap:6px;flex-wrap:wrap}
+.chip{font:600 13px var(--body);color:var(--muted);background:transparent;border:1px solid var(--edge);border-radius:999px;padding:7px 12px;cursor:pointer}
+.chip[aria-pressed="true"]{color:#1a1406;background:var(--gold);border-color:var(--gold)}
+.note{color:var(--faint);font-size:12.5px}
+.status{border:1px solid var(--edge);border-radius:10px;padding:12px 14px;background:var(--binder-2);color:var(--muted);margin-top:18px}
+.status b{color:var(--ink)}
+.status.error{border-color:rgba(229,138,107,.5)}
+.tablewrap{overflow-x:auto;border:1px solid var(--edge);border-radius:12px}
+table{border-collapse:collapse;width:100%;min-width:760px;font-variant-numeric:tabular-nums}
+th,td{padding:8px 10px;text-align:left;border-bottom:1px solid var(--edge);vertical-align:middle}
+th{font:700 11.5px var(--body);letter-spacing:.06em;text-transform:uppercase;color:var(--muted);background:var(--binder-2);position:sticky;top:0;cursor:pointer;white-space:nowrap}
+td.n,th.n{text-align:right}
+td img{width:38px;height:auto;border-radius:3px;display:block}
+td .name{font-weight:700}
+td .sub{color:var(--faint);font-size:12px}
+.mono{font-family:var(--mono)}
+.pill{display:inline-block;font:700 11px var(--body);letter-spacing:.04em;padding:3px 7px;border-radius:999px;white-space:nowrap}
+.pill.good{color:#0f2a1a;background:var(--good)}
+.pill.warn{color:#2a1f05;background:var(--warn)}
+.pill.bad{color:#2e120a;background:var(--bad)}
+.pill.none{color:var(--muted);border:1px solid var(--edge)}
+tfoot td{font-weight:700;background:var(--binder-2)}
+.toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:var(--ink);color:#10202a;font-weight:700;padding:10px 14px;border-radius:8px;font-size:13px}
+@media (max-width:760px){ .kpis{grid-template-columns:repeat(2,minmax(0,1fr))} .kpi b{font-size:20px} }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top"><span class="eyebrow">Uso interno · no enlazada desde la web</span><a href="./">← Volver a la carpeta</a></div>
+  <h1>Mis precios frente al suelo de Cardmarket</h1>
+  <p class="lead">Compara cada carta en stock con la oferta más barata de otros vendedores en <strong>español y Near Mint</strong>. Sirve para ver cuánto dejarías de ganar si bajaras al suelo para venderlo todo rápido.</p>
+
+  <div class="status" id="status">Cargando datos…</div>
+
+  <div class="kpis" id="kpis" hidden></div>
+
+  <div class="bar" id="bar" hidden>
+    <button class="btn primary" id="pdf" type="button">Descargar informe en PDF</button>
+    <button class="btn" id="xlsx" type="button">Descargar informe en Excel</button>
+    <div class="seg" id="seg" role="group" aria-label="Filtrar">
+      <button class="chip" type="button" data-f="all" aria-pressed="true">Todas</button>
+      <button class="chip" type="button" data-f="above" aria-pressed="false">Por encima del suelo</button>
+      <button class="chip" type="button" data-f="cheapest" aria-pressed="false">Soy el más barato</button>
+      <button class="chip" type="button" data-f="nofloor" aria-pressed="false">Sin datos de suelo</button>
+    </div>
+  </div>
+
+  <div class="tablewrap" id="tw" hidden>
+    <table>
+      <thead><tr>
+        <th></th><th data-s="name">Carta</th><th class="n" data-s="qty">Cant.</th>
+        <th class="n" data-s="price">Mi precio</th><th class="n" data-s="floor">Suelo ES</th>
+        <th class="n" data-s="diff">Diferencia</th><th class="n" data-s="pct">%</th>
+        <th class="n" data-s="lost">Si bajo al suelo</th><th data-s="state">Situación</th>
+      </tr></thead>
+      <tbody id="tb"></tbody>
+      <tfoot id="tf"></tfoot>
+    </table>
+  </div>
+  <p class="note" id="foot"></p>
+</div>
+<div class="toast" id="toast" hidden></div>
+
+<script>
+const CARDS = [{"id": 0, "name": "Código Live · Booster", "num": 999, "numLabel": "Código", "set": "Códigos online", "url": "https://www.cardmarket.com/es/Pokemon/Products/Singles/30th-Celebration-Additionals/30th-Celebration-Live-Code-Card-Booster-30C", "price": 0.14, "qty": 32, "type": "code", "tag": "", "toploader": false}, {"id": 1, "name": "Azumarill", "num": 68, "numLabel": "068/128", "set": "30th Celebration", "url": "https://www.cardmarket.com/es/Pokemon/Products/Singles/30th-Celebration/Azumarill-30C068", "price": 0.25, "qty": 2, "type": "psychic", "tag": "", "toploader": false}, {"id": 2, "name": "Cambio", "num": 127, "numLabel": "127/128", "set": "30th Celebration", "url": "https://www.cardmarket.com/es/Pokemon/Products/Singles/30th-Celebration/Switch-30C127", "price": 0.25, "qty": 4, "type": "trainer", "tag": "", "toploader": false}, {"id": 3, "name": "Código Live · Elite Trainer Box", "num": 999, "numLabel": "Código", "set": "Códigos online", "url": "https://www.cardmarket.com/es/Pokemon/Products/Singles/30th-Celebration-Additionals/30th-Celebration-Live-Code-Card-Elite-Trainer-Box-30C", "price": 0.48, "qty": 2, "type": "code", "tag": "", "toploader": false}, {"id": 4, "name": "Chandelure", "num": 75, "numLabel": "075/128", "set": "30th Celebration", "url": "https://www.cardmarket.com/es/Pokemon/Products/Singles/30th-Celebration/Chandelure-V1-30C075", "price": 0.25, "qty": 1, "type": "psychic", "tag": "", "toploader": false}, {"id": 5, "name": "Comfey", "num": 77, "numLabel": "077/128", "set": "30th Celebration", "url": "https://www.cardmarket.com/es/Pokemon/Products/Singles/30th-Celebration/Comfey-30C077", "price": 0.25, "qty": 1, "type": "psychic", "tag": "", "toploader": false}, {"id": 6, "name": "Cosmoem", "num": 79, "numLabel": "079/128", "set": "30th Celebration", "url": "https://www.cardmarket.com/es/Pokemon/Products/Singles/30th-Celebration/Cosmoem-30C079", "price": 0.25, "qty": 4, "type": "psychic", "tag": "", "toploader": false}, {"id": 7, "name": "Cosmog", "num": 78, "numLabel": "078/128", "set": "30th Celebration", "url": "https://www.cardmarket.com/es/Pokemon/Products/Singles/30th-Celebration/Cosmog-30C078", "price": 0.25, "qty": 1, "type": "psychic", "tag": "", "toploader": false}, {"id": 8, "name": "Dialga", "num": 103, "numLabel": "103/128", "set": "30th Celebration", "url": "https://www.cardmarket.com/es/Pokemon/Products/Singles/30th-Celebration/Dialga-30C103", "price": 0.25, "qty": 3, "type": "metal", "tag": "", "toploader": false}, {"id": 9, "name": "Ditto", "num": 115, "numLabel": "115/128", "set": "30th Celebration", "url": "https://www.cardmarket.com/es/Pokemon/Products/Singles/30th-Celebration/Ditto-30C115", "price": 0.45, "qty": 2, "type": "colorless", "tag": "", "toploader": false}, {"id": 10, "name": "Drifloon", "num": 73, "numLabel": "073/128", "set": "30th Celebration", "url": "https://www.cardmarket.com/es/Pokemon/Products/Singles/30th-Celebration/Drifloon-V1-30C073", "price": 0.25, "qty": 1, "type": "psychic", "tag": "", "toploader": false}, {"id": 11, "name": "Eevee", "num": 116, "numLabel": "116/128", "set": "30th Celebration", "url": "https://www.cardmarket.com/es/Pokemon/Products/Singles/30th-Celebration/Eevee-30C116", "price": 0.45, "qty": 1, "type": "colorless", "tag": "", "toploader": false}, {"id": 12, "name": "Eevee", "num": 117, "numLabel": "117/128", "set": "30th Celebration", "url": "https://www.cardmarket.com/es/Pokemon/Products/Singles/30th-Celebration/Eevee-V1-30C117", "price": 0.45, "qty": 2, "type": "colorless", "tag": "", "toploader": false}, {"id": 13, "name": "Espeon", "num": 69, "numLabel": "069/128", "set": "30th Celebration", "url": "https://www.cardmarket.com/es/Pokemon/Products/Singles/30th-Celebration/Espeon-30C069", "price": 0.55, "qty": 2, "type": "psychic", "tag": "", "toploader": false}, {"id": 14, "name": "Espeon ex", "num": 70, "numLabel": "070/128", "set": "30th Celebration", "url": "https://www.cardmarket.com/es/Pokemon/Products/Singles/30th-Celebration/Espeon-ex-30C070", "price": 1.35, "qty": 1, "type": "psychic", "tag": "ex", "toploader": false}, {"id": 15, "name": "Exeggcute", "num": 1, "numLabel": "001/128", "set": "30th Celebration", "url": "https://www.cardmarket.com/es/Pokemon/Products/Singles/30th-Celebration/Exeggcute-30C001", "price": 0.25, "qty": 1, "type": "grass", "tag": "", "toploader": false}, {"id": 16, "name": "Exeggutor de Alola", "num": 2, "numLabel": "002/128", "set": "30th Celebration", "url": "https://www.cardmarket.com/es/Pokemon/Products/Singles/30th-Celebration/Alolan-Exeggutor-V1-30C002", "price": 0.25, "qty": 1, "type": "grass", "tag": "", "toploader": false}, {"id": 17, "name": "Ferrothorn", "num": 104, "numLabel": "104/128", "set": "30th Celebration", "url": "https://www.cardmarket.com/es/Pokemon/Products/Singles/30th-Celebration/Ferrothorn-30C104", "price": 0.25, "qty": 1, "type": "metal", "tag": "", "toploader": false}, {"id": 18, "name": "Fuecoco ex", "num": 15, "numLabel": "015/128", "set": "30th Celebration", "url": "https://www.cardmarket.com/es/Pokemon/Products/Singles/30th-Celebration/Fuecoco-ex-V1-30C015", "price": 0.65, "qty": 3, "type": "fire", "tag": "ex", "toploader": false}, {"id": 19, "name": "Gholdengo", "num": 108, "numLabel": "108/128", "set": "30th Celebration", "url": "https://www.cardmarket.com/es/Pokemon/Products/Singles/30th-Celebration/Gholdengo-V1-30C108", "price": 0.25, "qty": 3, "type": "metal", "tag": "", "toploader": false}, {"id": 20, "name": "Gimmighoul", "num": 81, "numLabel": "081/128", "set": "30th Celebration", "url": "https://www.cardmarket.com/es/Pokemon/Products/Singles/30th-Celebration/Gimmighoul-30C081", "price": 0.25, "qty": 1, "type": "psychic", "tag": "", "toploader": false}, {"id": 21, "name": "Groudon", "num": 82, "numLabel": "082/128", "set": "30th Celebration", "url": "https://www.cardmarket.com/es/Pokemon/Products/Singles/30th-Celebration/Groudon-30C082", "price": 0.25, "qty": 1, "type": "fighting", "tag": "", "toploader": false}, {"id": 22, "name": "Hakamo-o", "num": 111, "numLabel": "111/128", "set": "30th Celebration", "url": "https://www.cardmarket.com/es/Pokemon/Products/Singles/30th-Celebration/Hakamo-o-30C111", "price": 0.25, "qty": 4, "type": "dragon", "tag": "", "toploader": false}, {"id": 23, "name": "Ho-Oh", "num": 12, "numLabel": "012/128", "set": "30th Celebration", "url": "https://www.cardmarket.com/es/Pokemon/Products/Singles/30th-Celebration/Ho-Oh-30C012", "price": 0.25, "qty": 1, "type": "fire", "tag": "", "toploader": false}, {"id": 24, "name": "Hydreigon", "num": 99, "numLabel": "099/128", "set": "30th Celebration", "url": "https://www.cardmarket.com/es/Pokemon/Products/Singles/30th-Celebration/Hydreigon-30C099", "price": 0.25, "qty": 1, "type": "darkness", "tag": "", "toploader": false}, {"id": 25, "name": "Jangmo-o", "num": 110, "numLabel": "110/128", "set": "30th Celebration", "url": "https://www.cardmarket.com/es/Pokemon/Products/Singles/30th-Celebration/Jangmo-o-30C110", "price": 0.25, "qty": 1, "type": "dragon", "tag": "", "toploader": false}, {"id": 26, "name": "Kangaskhan", "num": 114, "numLabel": "114/128", "set": "30th Celebration", "url": "https://www.cardmarket.com/es/Pokemon/Products/Singles/30th-Celebration/Kangaskhan-30C114", "price": 0.25, "qty": 1, "type": "colorless", "tag": "", "toploader": false}, {"id": 27, "name": "Kommo-o", "num": 143, "numLabel": "143/128", "set": "30th Celebration", "url": "https://www.cardmarket.com/es/Pokemon/Products/Singles/30th-Celebration/Kommo-o-V2-30C143", "price": 3.9, "qty": 1, "type": "dragon", "tag": "Ilustración especial", "toploader": false}, {"id": 28, "name": "Kommo-o", "num": 112, "numLabel": "112/128", "set": "30th Celebration", "url": "https://www.cardmarket.com/es/Pokemon/Products/Singles/30th-Celebration/Kommo-o-V1-30C112", "price": 0.25, "qty": 2, "type": "dragon", "tag": "", "toploader": false}, {"id": 29, "name": "Koraidon", "num": 86, "numLabel": "086/128", "set": "30th Celebration", "url": "https://www.cardmarket.com/es/Pokemon/Products/Singles/30th-Celebration/Koraidon-30C086", "price": 0.25, "qty": 1, "type": "fighting", "tag": "", "toploader": false}, {"id": 30, "name": "Kyogre", "num": 19, "numLabel": "019/128", "set": "30th Celebration", "url": "https://www.cardmarket.com/es/Pokemon/Products/Singles/30th-Celebration/Kyogre-30C019", "price": 0.25, "qty": 1, "type": "water", "tag": "", "toploader": false}, {"id": 31, "name": "Lapras", "num": 17, "numLabel": "017/128", "set": "30th Celebration", "url": "https://www.cardmarket.com/es/Pokemon/Products/Singles/30th-Celebration/Lapras-V1-30C017", "price": 0.25, "qty": 1, "type": "water", "tag": "", "toploader": false}, {"id": 32, "name": "Lucario", "num": 83, "numLabel": "083/128", "set": "30th Celebration", "url": "https://www.cardmarket.com/es/Pokemon/Products/Singles/30th-Celebration/Lucario-30C083", "price": 0.25, "qty": 2, "type": "fighting", "tag": "", "toploader": false}, {"id": 33, "name": "Lugia", "num": 121, "numLabel": "121/128", "set": "30th Celebration", "url": "https://www.cardmarket.com/es/Pokemon/Products/Singles/30th-Celebration/Lugia-30C121", "price": 0.35, "qty": 3, "type": "colorless", "tag": "", "toploader": false}, {"id": 34, "name": "Mega Dragonite ex", "num": 999, "numLabel": "271", "set": "Ascended Heroes", "url": "https://www.cardmarket.com/es/Pokemon/Products/Singles/Ascended-Heroes/Mega-Dragonite-ex-V2-ASC271", "price": 30.0, "qty": 1, "type": "dragon", "tag": "Ilustración especial", "toploader": true}, {"id": 35, "name": "Mega Kangaskhan ex", "num": 999, "numLabel": "182", "set": "Mega Evolución", "url": "https://www.cardmarket.com/es/Pokemon/Products/Singles/Mega-Evolution/Mega-Kangaskhan-ex-V3-MEG182", "price": 60.0, "qty": 1, "type": "colorless", "tag": "Ilustración especial", "toploader": true}, {"id": 36, "name": "Meowth", "num": 113, "numLabel": "113/128", "set": "30th Celebration", "url": "https://www.cardmarket.com/es/Pokemon/Products/Singles/30th-Celebration/Meowth-V1-30C113", "price": 0.25, "qty": 1, "type": "colorless", "tag": "", "toploader": false}, {"id": 37, "name": "Meowth de Alola", "num": 89, "numLabel": "089/128", "set": "30th Celebration", "url": "https://www.cardmarket.com/es/Pokemon/Products/Singles/30th-Celebration/Alolan-Meowth-V1-30C089", "price": 0.25, "qty": 3, "type": "darkness", "tag": "", "toploader": false}, {"id": 38, "name": "Mew", "num": 65, "numLabel": "065/128", "set": "30th Celebration", "url": "https://www.cardmarket.com/es/Pokemon/Products/Singles/30th-Celebration/Mew-30C065", "price": 0.25, "qty": 2, "type": "psychic", "tag": "", "toploader": false}, {"id": 39, "name": "Mew ex", "num": 66, "numLabel": "066/128", "set": "30th Celebration", "url": "https://www.cardmarket.com/es/Pokemon/Products/Singles/30th-Celebration/Mew-ex-V1-30C066", "price": 7.25, "qty": 1, "type": "psychic", "tag": "ex", "toploader": false}, {"id": 40, "name": "Mewtwo", "num": 63, "numLabel": "063/128", "set": "30th Celebration", "url": "https://www.cardmarket.com/es/Pokemon/Products/Singles/30th-Celebration/Mewtwo-30C063", "price": 0.35, "qty": 1, "type": "psychic", "tag": "", "toploader": false}, {"id": 41, "name": "Minior", "num": 124, "numLabel": "124/128", "set": "30th Celebration", "url": "https://www.cardmarket.com/es/Pokemon/Products/Singles/30th-Celebration/Minior-30C124", "price": 0.25, "qty": 2, "type": "colorless", "tag": "", "toploader": false}, {"id": 42, "name": "Moltres", "num": 11, "numLabel": "011/128", "set": "30th Celebration", "url": "https://www.cardmarket.com/es/Pokemon/Products/Singles/30th-Celebration/Moltres-V1-30C011", "price": 0.25, "qty": 2, "type": "fire", "tag": "", "toploader": false}, {"id": 43, "name": "Morpeko", "num": 61, "numLabel": "061/128", "set": "30th Celebration", "url": "https://www.cardmarket.com/es/Pokemon/Products/Singles/30th-Celebration/Morpeko-V1-30C061", "price": 0.25, "qty": 1, "type": "lightning", "tag": "", "toploader": false}, {"id": 44, "name": "Morpeko", "num": 135, "numLabel": "135/128", "set": "30th Celebration", "url": "https://www.cardmarket.com/es/Pokemon/Products/Singles/30th-Celebration/Morpeko-V2-30C135", "price": 7.35, "qty": 1, "type": "lightning", "tag": "Ilustración especial", "toploader": false}, {"id": 45, "name": "Murkrow", "num": 93, "numLabel": "093/128", "set": "30th Celebration", "url": "https://www.cardmarket.com/es/Pokemon/Products/Singles/30th-Celebration/Murkrow-30C093", "price": 0.25, "qty": 2, "type": "darkness", "tag": "", "toploader": false}, {"id": 46, "name": "Nidoran ♀", "num": 87, "numLabel": "087/128", "set": "30th Celebration", "url": "https://www.cardmarket.com/es/Pokemon/Products/Singles/30th-Celebration/Nidoran-F-30C087", "price": 0.25, "qty": 1, "type": "darkness", "tag": "", "toploader": false}, {"id": 47, "name": "Nidorina", "num": 88, "numLabel": "088/128", "set": "30th Celebration", "url": "https://www.cardmarket.com/es/Pokemon/Products/Singles/30th-Celebration/Nidorina-30C088", "price": 0.25, "qty": 3, "type": "darkness", "tag": "", "toploader": false}, {"id": 48, "name": "Ninetales", "num": 10, "numLabel": "010/128", "set": "30th Celebration", "url": "https://www.cardmarket.com/es/Pokemon/Products/Singles/30th-Celebration/Ninetales-30C010", "price": 0.25, "qty": 1, "type": "fire", "tag": "", "toploader": false}, {"id": 49, "name": "Pikachu", "num": 52, "numLabel": "052/128", "set": "30th Celebration", "url": "https://www.cardmarket.com/es/Pokemon/Products/Singles/30th-Celebration/Pikachu-30C052", "price": 1.9, "qty": 1, "type": "lightning", "tag": "", "toploader": false}, {"id": 50, "name": "Pikachu", "num": 42, "numLabel": "042/128", "set": "30th Celebration", "url": "https://www.cardmarket.com/es/Pokemon/Products/Singles/30th-Celebration/Pikachu-30C042", "price": 2.35, "qty": 1, "type": "lightning", "tag": "", "toploader": false}, {"id": 51, "name": "Pikachu", "num": 37, "numLabel": "037/128", "set": "30th Celebration", "url": "https://www.cardmarket.com/es/Pokemon/Products/Singles/30th-Celebration/Pikachu-30C037", "price": 1.8, "qty": 1, "type": "lightning", "tag": "", "toploader": false}, {"id": 52, "name": "Pikachu", "num": 31, "numLabel": "031/128", "set": "30th Celebration", "url": "https://www.cardmarket.com/es/Pokemon/Products/Singles/30th-Celebration/Pikachu-30C031", "price": 2.6, "qty": 1, "type": "lightning", "tag": "", "toploader": false}, {"id": 53, "name": "Pikachu", "num": 51, "numLabel": "051/128", "set": "30th Celebration", "url": "https://www.cardmarket.com/es/Pokemon/Products/Singles/30th-Celebration/Pikachu-30C051", "price": 1.65, "qty": 1, "type": "lightning", "tag": "", "toploader": false}, {"id": 54, "name": "Pikachu", "num": 28, "numLabel": "028/128", "set": "30th Celebration", "url": "https://www.cardmarket.com/es/Pokemon/Products/Singles/30th-Celebration/Pikachu-30C028", "price": 1.6, "qty": 1, "type": "lightning", "tag": "", "toploader": false}, {"id": 55, "name": "Pikachu", "num": 30, "numLabel": "030/128", "set": "30th Celebration", "url": "https://www.cardmarket.com/es/Pokemon/Products/Singles/30th-Celebration/Pikachu-30C030", "price": 1.6, "qty": 1, "type": "lightning", "tag": "", "toploader": false}, {"id": 56, "name": "Pikachu", "num": 45, "numLabel": "045/128", "set": "30th Celebration", "url": "https://www.cardmarket.com/es/Pokemon/Products/Singles/30th-Celebration/Pikachu-30C045", "price": 1.4, "qty": 1, "type": "lightning", "tag": "", "toploader": false}, {"id": 57, "name": "Pikachu", "num": 40, "numLabel": "040/128", "set": "30th Celebration", "url": "https://www.cardmarket.com/es/Pokemon/Products/Singles/30th-Celebration/Pikachu-30C040", "price": 2.45, "qty": 2, "type": "lightning", "tag": "", "toploader": false}, {"id": 58, "name": "Pikachu", "num": 26, "numLabel": "026/128", "set": "30th Celebration", "url": "https://www.cardmarket.com/es/Pokemon/Products/Singles/30th-Celebration/Pikachu-30C026", "price": 1.6, "qty": 1, "type": "lightning", "tag": "", "toploader": false}, {"id": 59, "name": "Pikachu ex", "num": 53, "numLabel": "053/128", "set": "30th Celebration", "url": "https://www.cardmarket.com/es/Pokemon/Products/Singles/30th-Celebration/Pikachu-ex-V1-30C053", "price": 2.1, "qty": 1, "type": "lightning", "tag": "ex", "toploader": false}, {"id": 60, "name": "Pikachu ex", "num": 54, "numLabel": "054/128", "set": "30th Celebration", "url": "https://www.cardmarket.com/es/Pokemon/Products/Singles/30th-Celebration/Pikachu-ex-V1-30C054", "price": 2.1, "qty": 1, "type": "lightning", "tag": "ex", "toploader": false}, {"id": 61, "name": "Pokétableta", "num": 126, "numLabel": "126/128", "set": "30th Celebration", "url": "https://www.cardmarket.com/es/Pokemon/Products/Singles/30th-Celebration/Poke-Pad-30C126", "price": 0.75, "qty": 1, "type": "trainer", "tag": "", "toploader": false}, {"id": 62, "name": "Raikou", "num": 999, "numLabel": "VIV 50", "set": "Classic Collection", "url": "https://www.cardmarket.com/es/Pokemon/Products/Singles/30th-Celebration/Raikou-30CVIV-50", "price": 20.0, "qty": 1, "type": "lightning", "tag": "Classic", "toploader": true}, {"id": 63, "name": "Reshiram", "num": 14, "numLabel": "014/128", "set": "30th Celebration", "url": "https://www.cardmarket.com/es/Pokemon/Products/Singles/30th-Celebration/Reshiram-30C014", "price": 0.25, "qty": 2, "type": "fire", "tag": "", "toploader": false}, {"id": 64, "name": "Scraggy", "num": 94, "numLabel": "094/128", "set": "30th Celebration", "url": "https://www.cardmarket.com/es/Pokemon/Products/Singles/30th-Celebration/Scraggy-V1-30C094", "price": 0.25, "qty": 2, "type": "darkness", "tag": "", "toploader": false}, {"id": 65, "name": "Seismitoad", "num": 84, "numLabel": "084/128", "set": "30th Celebration", "url": "https://www.cardmarket.com/es/Pokemon/Products/Singles/30th-Celebration/Seismitoad-30C084", "price": 0.25, "qty": 1, "type": "fighting", "tag": "", "toploader": false}, {"id": 66, "name": "Snorlax", "num": 119, "numLabel": "119/128", "set": "30th Celebration", "url": "https://www.cardmarket.com/es/Pokemon/Products/Singles/30th-Celebration/Snorlax-30C119", "price": 0.35, "qty": 2, "type": "colorless", "tag": "", "toploader": false}, {"id": 67, "name": "Solgaleo", "num": 105, "numLabel": "105/128", "set": "30th Celebration", "url": "https://www.cardmarket.com/es/Pokemon/Products/Singles/30th-Celebration/Solgaleo-30C105", "price": 0.25, "qty": 1, "type": "metal", "tag": "", "toploader": false}, {"id": 68, "name": "Sylveon ex", "num": 71, "numLabel": "071/128", "set": "30th Celebration", "url": "https://www.cardmarket.com/es/Pokemon/Products/Singles/30th-Celebration/Sylveon-ex-V1-30C071", "price": 1.4, "qty": 2, "type": "psychic", "tag": "ex", "toploader": false}, {"id": 69, "name": "Toxel", "num": 58, "numLabel": "058/128", "set": "30th Celebration", "url": "https://www.cardmarket.com/es/Pokemon/Products/Singles/30th-Celebration/Toxel-30C058", "price": 0.25, "qty": 1, "type": "lightning", "tag": "", "toploader": false}, {"id": 70, "name": "Toxtricity", "num": 59, "numLabel": "059/128", "set": "30th Celebration", "url": "https://www.cardmarket.com/es/Pokemon/Products/Singles/30th-Celebration/Toxtricity-30C059", "price": 0.25, "qty": 1, "type": "lightning", "tag": "", "toploader": false}, {"id": 71, "name": "Tropius", "num": 5, "numLabel": "005/128", "set": "30th Celebration", "url": "https://www.cardmarket.com/es/Pokemon/Products/Singles/30th-Celebration/Tropius-30C005", "price": 0.25, "qty": 3, "type": "grass", "tag": "", "toploader": false}, {"id": 72, "name": "Victini", "num": 13, "numLabel": "013/128", "set": "30th Celebration", "url": "https://www.cardmarket.com/es/Pokemon/Products/Singles/30th-Celebration/Victini-30C013", "price": 0.25, "qty": 1, "type": "fire", "tag": "", "toploader": false}, {"id": 73, "name": "Volbeat", "num": 3, "numLabel": "003/128", "set": "30th Celebration", "url": "https://www.cardmarket.com/es/Pokemon/Products/Singles/30th-Celebration/Volbeat-30C003", "price": 0.25, "qty": 1, "type": "grass", "tag": "", "toploader": false}, {"id": 74, "name": "Vulpix", "num": 9, "numLabel": "009/128", "set": "30th Celebration", "url": "https://www.cardmarket.com/es/Pokemon/Products/Singles/30th-Celebration/Vulpix-30C009", "price": 0.25, "qty": 1, "type": "fire", "tag": "", "toploader": false}, {"id": 75, "name": "Wishiwashi", "num": 22, "numLabel": "022/128", "set": "30th Celebration", "url": "https://www.cardmarket.com/es/Pokemon/Products/Singles/30th-Celebration/Wishiwashi-30C022", "price": 0.25, "qty": 3, "type": "water", "tag": "", "toploader": false}, {"id": 76, "name": "Xerneas", "num": 76, "numLabel": "076/128", "set": "30th Celebration", "url": "https://www.cardmarket.com/es/Pokemon/Products/Singles/30th-Celebration/Xerneas-30C076", "price": 0.25, "qty": 1, "type": "psychic", "tag": "", "toploader": false}, {"id": 77, "name": "Yveltal", "num": 100, "numLabel": "100/128", "set": "30th Celebration", "url": "https://www.cardmarket.com/es/Pokemon/Products/Singles/30th-Celebration/Yveltal-30C100", "price": 0.25, "qty": 1, "type": "darkness", "tag": "", "toploader": false}, {"id": 78, "name": "Zacian V", "num": 999, "numLabel": "SSH 138", "set": "Classic Collection", "url": "https://www.cardmarket.com/es/Pokemon/Products/Singles/30th-Celebration/Zacian-V-30CSSH-138", "price": 13.0, "qty": 1, "type": "metal", "tag": "Classic", "toploader": false}, {"id": 79, "name": "Zacian", "num": 106, "numLabel": "106/128", "set": "30th Celebration", "url": "https://www.cardmarket.com/es/Pokemon/Products/Singles/30th-Celebration/Zacian-30C106", "price": 0.25, "qty": 1, "type": "metal", "tag": "", "toploader": false}, {"id": 80, "name": "Zamazenta", "num": 107, "numLabel": "107/128", "set": "30th Celebration", "url": "https://www.cardmarket.com/es/Pokemon/Products/Singles/30th-Celebration/Zamazenta-30C107", "price": 0.25, "qty": 1, "type": "metal", "tag": "", "toploader": false}, {"id": 81, "name": "Zeraora", "num": 57, "numLabel": "057/128", "set": "30th Celebration", "url": "https://www.cardmarket.com/es/Pokemon/Products/Singles/30th-Celebration/Zeraora-30C057", "price": 0.25, "qty": 3, "type": "lightning", "tag": "", "toploader": false}, {"id": 82, "name": "Zoroark de Hisui", "num": 123, "numLabel": "123/128", "set": "30th Celebration", "url": "https://www.cardmarket.com/es/Pokemon/Products/Singles/30th-Celebration/Hisuian-Zoroark-30C123", "price": 0.25, "qty": 3, "type": "colorless", "tag": "", "toploader": false}, {"id": 83, "name": "Zorua", "num": 95, "numLabel": "095/128", "set": "30th Celebration", "url": "https://www.cardmarket.com/es/Pokemon/Products/Singles/30th-Celebration/Zorua-30C095", "price": 0.25, "qty": 1, "type": "darkness", "tag": "", "toploader": false}, {"id": 84, "name": "Zorua de Hisui", "num": 122, "numLabel": "122/128", "set": "30th Celebration", "url": "https://www.cardmarket.com/es/Pokemon/Products/Singles/30th-Celebration/Hisuian-Zorua-V1-30C122", "price": 0.25, "qty": 2, "type": "colorless", "tag": "", "toploader": false}, {"id": 85, "name": "Zorua de Hisui", "num": 145, "numLabel": "145/128", "set": "30th Celebration", "url": "https://www.cardmarket.com/es/Pokemon/Products/Singles/30th-Celebration/Hisuian-Zorua-V2-30C145", "price": 9.1, "qty": 1, "type": "colorless", "tag": "Ilustración especial", "toploader": false}, {"id": 86, "name": "Zweilous", "num": 98, "numLabel": "098/128", "set": "30th Celebration", "url": "https://www.cardmarket.com/es/Pokemon/Products/Singles/30th-Celebration/Zweilous-30C098", "price": 0.25, "qty": 1, "type": "darkness", "tag": "", "toploader": false}];
+const IMGS = {"0": "img/0.webp", "1": "img/1.webp", "2": "img/2.webp", "3": "img/3.webp", "4": "img/4.webp", "5": "img/5.webp", "6": "img/6.webp", "7": "img/7.webp", "8": "img/8.webp", "9": "img/9.webp", "10": "img/10.webp", "11": "img/11.webp", "12": "img/12.webp", "13": "img/13.webp", "14": "img/14.webp", "15": "img/15.webp", "16": "img/16.webp", "17": "img/17.webp", "18": "img/18.webp", "19": "img/19.webp", "20": "img/20.webp", "21": "img/21.webp", "22": "img/22.webp", "23": "img/23.webp", "24": "img/24.webp", "25": "img/25.webp", "26": "img/26.webp", "27": "img/27.webp", "28": "img/28.webp", "29": "img/29.webp", "30": "img/30.webp", "31": "img/31.webp", "32": "img/32.webp", "33": "img/33.webp", "34": "img/34.webp", "35": "img/35.webp", "36": "img/36.webp", "37": "img/37.webp", "38": "img/38.webp", "39": "img/39.webp", "40": "img/40.webp", "41": "img/41.webp", "42": "img/42.webp", "43": "img/43.webp", "44": "img/44.webp", "45": "img/45.webp", "46": "img/46.webp", "47": "img/47.webp", "48": "img/48.webp", "49": "img/49.webp", "50": "img/50.webp", "51": "img/51.webp", "52": "img/52.webp", "53": "img/53.webp", "54": "img/54.webp", "55": "img/55.webp", "56": "img/56.webp", "57": "img/57.webp", "58": "img/58.webp", "59": "img/59.webp", "60": "img/60.webp", "61": "img/61.webp", "62": "img/62.webp", "63": "img/63.webp", "64": "img/64.webp", "65": "img/65.webp", "66": "img/66.webp", "67": "img/67.webp", "68": "img/68.webp", "69": "img/69.webp", "70": "img/70.webp", "71": "img/71.webp", "72": "img/72.webp", "73": "img/73.webp", "74": "img/74.webp", "75": "img/75.webp", "76": "img/76.webp", "77": "img/77.webp", "78": "img/78.webp", "79": "img/79.webp", "80": "img/80.webp", "81": "img/81.webp", "82": "img/82.webp", "83": "img/83.webp", "84": "img/84.webp", "85": "img/85.webp", "86": "img/86.webp", "w023": "img/w023.webp", "w044": "img/w044.webp", "w046": "img/w046.webp", "w047": "img/w047.webp", "w050": "img/w050.webp"};
+
+const eur = n => n.toLocaleString('es-ES',{minimumFractionDigits:2,maximumFractionDigits:2}) + ' €';
+const pctf = n => (n>0?'+':'') + n.toLocaleString('es-ES',{maximumFractionDigits:0}) + ' %';
+const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const num = s => { const v = parseFloat(String(s).trim().replace(',', '.')); return isNaN(v) ? null : v; };
+let floorDate = '';
+let rows = [], state = {f:'all', s:'lost', dir:-1};
+
+function toast(m){ const t=document.getElementById('toast'); t.textContent=m; t.hidden=false; clearTimeout(toast.t); toast.t=setTimeout(()=>t.hidden=true,2200); }
+
+function parseCsv(text){ return text.split(/\r?\n/).slice(1).map(l => l.split(';')).filter(p => p.length >= 2 && p[0].trim() !== ''); }
+
+function situation(r){
+  if (r.floor == null) return {k:'none', label:'Sin datos'};
+  if (r.price <= r.floor) return {k:'good', label:'Soy el más barato'};
+  if (r.pct <= 25) return {k:'warn', label:'Cerca del suelo'};
+  return {k:'bad', label:'Muy por encima'};
+}
+
+async function load(){
+  const st = document.getElementById('status');
+  try { const r = await fetch('stock.csv',{cache:'no-store'}); if (r.ok) parseCsv(await r.text()).forEach(p => { const c = CARDS.find(x => String(x.id) === p[0].trim()); if (!c) return; const pr = num(p[2]), q = parseInt(p[3],10); if (pr!=null) c.price = pr; if (!isNaN(q)) c.qty = Math.max(0,q); }); } catch(e){}
+  let floors = new Map();
+  try {
+    const r = await fetch('suelo.csv',{cache:'no-store'});
+    if (!r.ok) throw new Error('no');
+    parseCsv(await r.text()).forEach(p => { floors.set(p[0].trim(), {min:num(p[1]), offers: parseInt(p[2],10), date:(p[3]||'').trim()}); if (p[3]) floorDate = p[3].trim(); });
+  } catch(e){
+    st.classList.add('error');
+    st.innerHTML = '<b>Falta el archivo suelo.csv.</b> Pide a Claude Code que lo genere y súbelo a GitHub junto a index.html.';
+    return;
+  }
+  rows = CARDS.filter(c => c.qty > 0).map(c => {
+    const f = floors.get(String(c.id)) || {};
+    const floor = f.min ?? null;
+    const diff = floor==null ? null : c.price - floor;
+    const pct = floor ? diff/floor*100 : null;
+    const r = {...c, floor, offers: f.offers, diff, pct, lost: diff==null ? null : Math.max(0,diff)*c.qty};
+    r.sit = situation(r); return r;
+  });
+  st.innerHTML = `Suelo consultado en Cardmarket el <b>${esc(floorDate || 'fecha desconocida')}</b>. Tus precios salen de <b>stock.csv</b>. Las cartas agotadas no cuentan.`;
+  ['kpis','bar','tw'].forEach(id => document.getElementById(id).hidden = false);
+  render();
+}
+
+function totals(list){
+  const withF = list.filter(r => r.floor != null);
+  const mine = list.reduce((a,r)=>a+r.price*r.qty,0);
+  const mineF = withF.reduce((a,r)=>a+r.price*r.qty,0);
+  const atFloor = withF.reduce((a,r)=>a+Math.min(r.price,r.floor)*r.qty,0);
+  return {mine, mineF, atFloor, lost: mineF-atFloor, copies: list.reduce((a,r)=>a+r.qty,0), nF: withF.length,
+          cheapest: list.filter(r=>r.sit.k==='good').length, above: list.filter(r=>r.sit.k==='bad'||r.sit.k==='warn').length};
+}
+
+function filtered(){
+  const f = state.f;
+  let l = rows.filter(r => f==='all' || (f==='above' && (r.sit.k==='bad'||r.sit.k==='warn')) || (f==='cheapest' && r.sit.k==='good') || (f==='nofloor' && r.sit.k==='none'));
+  const k = state.s, d = state.dir;
+  const val = r => k==='name' ? r.name : k==='state' ? r.sit.label : (r[k] ?? -Infinity);
+  return l.sort((a,b) => { const x=val(a), y=val(b); return (typeof x==='string' ? x.localeCompare(y,'es') : x-y) * d; });
+}
+
+function render(){
+  const T = totals(rows);
+  document.getElementById('kpis').innerHTML = `
+    <div class="kpi"><small>Stock a mis precios</small><b>${eur(T.mine)}</b><span>${rows.length} cartas · ${T.copies} copias</span></div>
+    <div class="kpi hl"><small>Stock a precio suelo</small><b>${eur(T.atFloor)}</b><span>${T.nF} cartas con datos de suelo</span></div>
+    <div class="kpi"><small>Diferencia</small><b>${eur(T.lost)}</b><span>${T.mineF ? Math.round(T.lost/T.mineF*100) : 0} % menos si bajo todo al suelo</span></div>
+    <div class="kpi"><small>Posición</small><b>${T.cheapest} / ${T.nF}</b><span>cartas en las que ya soy el más barato</span></div>`;
+  const list = filtered();
+  document.getElementById('tb').innerHTML = list.map(r => `<tr>
+    <td>${IMGS[r.id] ? `<img src="${IMGS[r.id]}" alt="" loading="lazy">` : ''}</td>
+    <td><div class="name">${esc(r.name)}</div><div class="sub">${esc(r.set)}${r.numLabel && r.numLabel!=='Código' ? ' · '+esc(r.numLabel) : ''} · <a href="${esc(r.url)}?language=4&minCondition=2" target="_blank" rel="noopener">ver ofertas</a></div></td>
+    <td class="n mono">${r.qty}</td>
+    <td class="n mono">${eur(r.price)}</td>
+    <td class="n mono">${r.floor==null ? '—' : eur(r.floor)}</td>
+    <td class="n mono">${r.diff==null ? '—' : (r.diff>0?'+':'') + eur(r.diff)}</td>
+    <td class="n mono">${r.pct==null ? '—' : pctf(r.pct)}</td>
+    <td class="n mono">${r.lost==null ? '—' : '−' + eur(r.lost)}</td>
+    <td><span class="pill ${r.sit.k}">${r.sit.label}</span></td></tr>`).join('');
+  const t = totals(list);
+  document.getElementById('tf').innerHTML = `<tr><td></td><td>Total (${list.length} cartas)</td><td class="n mono">${t.copies}</td><td class="n mono">${eur(t.mine)}</td><td class="n mono">${eur(t.atFloor)}</td><td class="n mono">${eur(t.lost)}</td><td></td><td class="n mono">−${eur(t.lost)}</td><td></td></tr>`;
+  document.getElementById('foot').textContent = '«Stock a precio suelo» usa el suelo en las cartas donde estás por encima y tu propio precio donde ya eres el más barato. No incluye la comisión de Cardmarket ni los gastos de envío.';
+}
+
+document.getElementById('seg').addEventListener('click', e => { const b = e.target.closest('.chip'); if (!b) return; state.f = b.dataset.f; document.querySelectorAll('#seg .chip').forEach(c => c.setAttribute('aria-pressed', c===b)); render(); });
+document.querySelector('thead').addEventListener('click', e => { const th = e.target.closest('th[data-s]'); if (!th) return; const k = th.dataset.s; state.dir = state.s===k ? -state.dir : (k==='name'||k==='state' ? 1 : -1); state.s = k; render(); });
+
+/* ---------- Exportar ---------- */
+function saveBlob(blob, name){ const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(a.href),4000); }
+function loadScript(src){ return new Promise((res,rej)=>{ const s=document.createElement('script'); s.src=src; s.onload=res; s.onerror=()=>rej(new Error('script')); document.head.appendChild(s); }); }
+function loadImg(src){ return new Promise(res => { const i=new Image(); i.onload=()=>res(i); i.onerror=()=>res(null); i.src=src; }); }
+async function thumbs(list){ return Promise.all(list.map(async r => { if (!IMGS[r.id]) return null; const img = await loadImg(IMGS[r.id]); if (!img) return null;
+  const w=200, h=Math.round(w*img.naturalHeight/img.naturalWidth); const cv=document.createElement('canvas'); cv.width=w; cv.height=h; const x=cv.getContext('2d'); x.fillStyle='#fff'; x.fillRect(0,0,w,h); x.drawImage(img,0,0,w,h); try{ return cv.toDataURL('image/jpeg',.82);}catch(e){return null;} })); }
+const pdfText = s => String(s).replace('♀','(F)').replace(/[^\x00-\xFF€…−]/g,'').replace('−','-');
+async function busy(btn, text, job){ const l=btn.innerHTML; btn.disabled=true; btn.textContent=text; try{ await job(); }catch(e){ console.error(e); toast('No se pudo generar el archivo. Revisa la conexión.'); } finally { btn.disabled=false; btn.innerHTML=l; } }
+const today = () => new Date().toLocaleDateString('es-ES');
+
+document.getElementById('pdf').addEventListener('click', ev => busy(ev.currentTarget, 'Generando PDF…', async () => {
+  if (!window.jspdf) await loadScript('https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js');
+  const list = filtered(), pics = await thumbs(list), T = totals(list);
+  const doc = new window.jspdf.jsPDF({unit:'mm', format:'a4', orientation:'landscape'});
+  const W=297, H=210, M=12, ROW=24;
+  const ink=[16,32,42], muted=[104,124,130], gold=[176,124,20], line=[222,226,228];
+  const colors = {good:[46,140,82], warn:[176,124,20], bad:[196,86,52], none:[130,140,145]};
+  const X = {img:M, name:M+20, qty:128, price:151, floor:174, diff:197, pct:214, lost:238, sit:244};
+  function head(first){
+    let y=M;
+    if (first){
+      doc.setFont('helvetica','bold'); doc.setFontSize(18); doc.setTextColor(...ink); doc.text('Mis precios frente al suelo de Cardmarket (español, NM)', M, y+7);
+      doc.setFont('helvetica','normal'); doc.setFontSize(9.5); doc.setTextColor(...muted);
+      doc.text(`Informe del ${today()} · suelo consultado el ${pdfText(floorDate||'-')} · ${list.length} cartas · ${T.copies} copias`, M, y+13);
+      doc.setFontSize(11); doc.setTextColor(...ink); doc.setFont('helvetica','bold');
+      doc.text(`A mis precios: ${eur(T.mine)}`, M, y+21);
+      doc.setTextColor(...gold); doc.text(`A precio suelo: ${eur(T.atFloor)}`, M+75, y+21);
+      doc.setTextColor(...colors.bad); doc.text(`Diferencia: -${eur(T.lost)}`, M+150, y+21);
+      doc.setTextColor(...ink); doc.text(`Soy el más barato en ${T.cheapest} de ${T.nF}`, M+215, y+21);
+      y += 27;
+    }
+    doc.setFillColor(...ink); doc.rect(M, y, W-2*M, 7, 'F'); doc.setFontSize(8.5); doc.setTextColor(255,255,255); doc.setFont('helvetica','bold');
+    doc.text('Carta', X.name, y+4.8); doc.text('Cant.', X.qty, y+4.8, {align:'right'}); doc.text('Mi precio', X.price, y+4.8, {align:'right'});
+    doc.text('Suelo ES', X.floor, y+4.8, {align:'right'}); doc.text('Dif.', X.diff, y+4.8, {align:'right'}); doc.text('%', X.pct, y+4.8, {align:'right'});
+    doc.text('Si bajo', X.lost, y+4.8, {align:'right'}); doc.text('Situación', X.sit, y+4.8);
+    return y+9;
+  }
+  let y = head(true);
+  list.forEach((r,i) => {
+    if (y+ROW > H-M-6){ doc.addPage(); y = head(false); }
+    if (pics[i]) doc.addImage(pics[i], 'JPEG', X.img+1, y+1, 15, 21);
+    doc.setFont('helvetica','bold'); doc.setFontSize(10); doc.setTextColor(...ink); doc.text(pdfText(r.name), X.name, y+9);
+    doc.setFont('helvetica','normal'); doc.setFontSize(8.5); doc.setTextColor(...muted); doc.text(pdfText(r.numLabel==='Código' ? r.set : `${r.set} · ${r.numLabel}`), X.name, y+14);
+    doc.setFontSize(9.5); doc.setTextColor(...ink);
+    doc.text(String(r.qty), X.qty, y+11, {align:'right'}); doc.text(eur(r.price), X.price, y+11, {align:'right'});
+    doc.text(r.floor==null?'-':eur(r.floor), X.floor, y+11, {align:'right'});
+    doc.text(r.diff==null?'-':(r.diff>0?'+':'')+eur(r.diff), X.diff, y+11, {align:'right'});
+    doc.text(r.pct==null?'-':pctf(r.pct), X.pct, y+11, {align:'right'});
+    doc.text(r.lost==null?'-':'-'+eur(r.lost), X.lost, y+11, {align:'right'});
+    doc.setFont('helvetica','bold'); doc.setTextColor(...colors[r.sit.k]); doc.text(pdfText(r.sit.label), X.sit, y+11);
+    doc.setDrawColor(...line); doc.line(M, y+ROW-1, W-M, y+ROW-1); y += ROW;
+  });
+  const pages = doc.getNumberOfPages();
+  for (let p=1;p<=pages;p++){ doc.setPage(p); doc.setFont('helvetica','normal'); doc.setFontSize(7.5); doc.setTextColor(...muted);
+    doc.text('Suelo = oferta más barata de otros vendedores en español y Near Mint. No incluye comisión de Cardmarket ni envío.', M, H-6);
+    doc.text(`Página ${p} de ${pages}`, W-M, H-6, {align:'right'}); }
+  saveBlob(doc.output('blob'), 'informe-suelo.pdf'); toast('PDF descargado');
+}));
+
+document.getElementById('xlsx').addEventListener('click', ev => busy(ev.currentTarget, 'Generando Excel…', async () => {
+  if (!window.ExcelJS) await loadScript('https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js');
+  const list = filtered(), pics = await thumbs(list);
+  const wb = new ExcelJS.Workbook(); const ws = wb.addWorksheet('Suelo', {views:[{state:'frozen', ySplit:3}]});
+  ws.columns = [{width:10},{width:28},{width:22},{width:11},{width:8},{width:12},{width:12},{width:12},{width:10},{width:14},{width:18},{width:12}];
+  ws.mergeCells('A1:L1'); ws.getCell('A1').value = `Mis precios frente al suelo de Cardmarket (español, NM) — informe ${today()}, suelo del ${floorDate||'-'}`;
+  ws.getCell('A1').font = {bold:true, size:14}; ws.getRow(1).height = 24;
+  const h = ws.getRow(3); h.values = ['Foto','Carta','Colección','Número','Cant.','Mi precio','Suelo ES','Diferencia','%','Si bajo al suelo','Situación','Cardmarket'];
+  h.font = {bold:true, color:{argb:'FFFFFFFF'}}; h.eachCell(c => c.fill = {type:'pattern', pattern:'solid', fgColor:{argb:'FF10202A'}});
+  const fill = {good:'FFD6F0DF', warn:'FFF6E7C4', bad:'FFF7D9CF', none:'FFEDEFF0'};
+  list.forEach((r,i) => {
+    const n = 4+i, row = ws.getRow(n);
+    row.values = ['', r.name, r.set, r.numLabel, r.qty, r.price, r.floor ?? '',
+      r.floor==null ? '' : {formula:`F${n}-G${n}`, result:r.diff},
+      r.floor==null ? '' : {formula:`IF(G${n}=0,"",(F${n}-G${n})/G${n})`, result:r.pct/100},
+      r.floor==null ? '' : {formula:`MAX(0,F${n}-G${n})*E${n}`, result:r.lost},
+      r.sit.label, {text:'Ver ofertas', hyperlink:r.url+'?language=4&minCondition=2'}];
+    row.height = 64; row.eachCell({includeEmpty:true}, c => c.alignment = {vertical:'middle', wrapText:true});
+    [6,7,8,10].forEach(k => row.getCell(k).numFmt = '#,##0.00 €'); row.getCell(9).numFmt = '0%';
+    row.getCell(2).font = {bold:true}; row.getCell(11).fill = {type:'pattern', pattern:'solid', fgColor:{argb:fill[r.sit.k]}};
+    row.getCell(12).font = {color:{argb:'FF1F5FBF'}, underline:true};
+    if (pics[i]){ const id = wb.addImage({base64:pics[i], extension:'jpeg'}); ws.addImage(id, {tl:{col:0.1, row:n-1+0.06}, ext:{width:58, height:81}}); }
+  });
+  const t = 4+list.length, L = t-1, tr = ws.getRow(t);
+  tr.values = ['', 'TOTAL', '', '', {formula:`SUM(E4:E${L})`}, '', '', '', '', {formula:`SUM(J4:J${L})`}, '', ''];
+  tr.font = {bold:true}; tr.getCell(10).numFmt = '#,##0.00 €';
+  const t2 = ws.getRow(t+1); t2.values = ['', 'Stock a mis precios', '', '', '', {formula:`SUMPRODUCT(E4:E${L},F4:F${L})`}]; t2.getCell(6).numFmt = '#,##0.00 €'; t2.font = {bold:true};
+  const t3 = ws.getRow(t+2); t3.values = ['', 'Stock a precio suelo', '', '', '', {formula:`SUMPRODUCT(E4:E${L},F4:F${L})-J${t}`}]; t3.getCell(6).numFmt = '#,##0.00 €'; t3.font = {bold:true};
+  const buf = await wb.xlsx.writeBuffer();
+  saveBlob(new Blob([buf], {type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}), 'informe-suelo.xlsx'); toast('Excel descargado');
+}));
+
+load();
+</script>
+</body>
+</html>
