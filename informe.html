@@ -60,6 +60,12 @@ td .sub{color:var(--faint);font-size:12px}
 .pill.bad{color:#2e120a;background:var(--bad)}
 .pill.none{color:var(--muted);border:1px solid var(--edge)}
 tfoot td{font-weight:700;background:var(--binder-2)}
+.mode-row{display:flex;justify-content:space-between;align-items:center;gap:14px;flex-wrap:wrap}
+.mode-actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.opt{display:inline-flex;align-items:center;gap:6px;color:var(--muted);font-size:13px}
+.opt input[type=number],.opt input[type=password]{width:72px;background:var(--pocket);color:var(--ink);border:1px solid var(--edge);border-radius:6px;padding:6px 8px;font:13px var(--mono)}
+.btn:disabled{opacity:.5;cursor:default}
+.mode-msg{margin-top:10px;color:var(--ink)}
 .toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:var(--ink);color:#10202a;font-weight:700;padding:10px 14px;border-radius:8px;font-size:13px}
 @media (max-width:760px){ .kpis{grid-template-columns:repeat(2,minmax(0,1fr))} .kpi b{font-size:20px} }
 </style>
@@ -72,6 +78,7 @@ tfoot td{font-weight:700;background:var(--binder-2)}
 
   <div class="status" id="status">Cargando datos…</div>
 
+  <div class="status" id="mode" hidden></div>
   <div class="kpis" id="kpis" hidden></div>
 
   <div class="bar" id="bar" hidden>
@@ -123,7 +130,73 @@ function situation(r){
   return {k:'bad', label:'Muy por encima'};
 }
 
+const modeState = {cfg:null, pinNeeded:false};
+function pinGet(){ try { return localStorage.getItem('modo-pin') || ''; } catch(e){ return ''; } }
+function pinSet(v){ try { localStorage.setItem('modo-pin', v); } catch(e){} }
+
+function paintMode(msg, kind){
+  const el = document.getElementById('mode'), c = modeState.cfg || {modo:'mis-precios', ajuste:0, minimo:0.02};
+  const on = c.modo === 'suelo';
+  el.hidden = false; el.classList.toggle('error', kind === 'error');
+  el.innerHTML = `
+    <div class="mode-row">
+      <div><b>La web muestra ahora: ${on ? 'precios de suelo (rebajas activadas)' : 'tus precios normales'}.</b>
+        <div class="note">Al cambiarlo, la web se actualiza para todo el mundo en un minuto aproximadamente.</div></div>
+      <div class="mode-actions">
+        <label class="opt" for="adj"><input type="checkbox" id="adj" ${Number(c.ajuste) < 0 ? 'checked' : ''}> 1 céntimo por debajo del suelo</label>
+        <label class="opt" for="minp">Mínimo <input type="number" id="minp" min="0" step="0.01" value="${Number(c.minimo ?? 0.02)}"> €</label>
+        ${modeState.pinNeeded ? `<label class="opt" for="pin">PIN <input type="password" id="pin" value="${esc(pinGet())}" autocomplete="off"></label>` : ''}
+        <button class="btn ${on ? '' : 'primary'}" type="button" data-modo="suelo">${on ? 'Actualizar rebajas' : 'Activar precios de suelo'}</button>
+        <button class="btn ${on ? 'primary' : ''}" type="button" data-modo="mis-precios" ${on ? '' : 'disabled'}>Volver a mis precios</button>
+      </div>
+    </div>
+    ${msg ? `<div class="mode-msg">${msg}</div>` : ''}`;
+}
+
+async function showMode(){
+  try {
+    const r = await fetch('api/modo', {cache:'no-store'});
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(j.error === 'config' ? 'config' : (j.message || 'api'));
+    modeState.cfg = j; modeState.pinNeeded = !!j.pin; paintMode();
+  } catch(err){
+    try { const r = await fetch('config.json', {cache:'no-store'}); if (r.ok) modeState.cfg = await r.json(); } catch(e){}
+    paintMode(err.message === 'config'
+      ? 'El botón aún no está conectado: faltan <b>GITHUB_TOKEN</b> y <b>GITHUB_REPO</b> en la configuración de Vercel.'
+      : 'No se pudo conectar con la función de cambio de modo (api/modo). Mientras tanto puedes cambiarlo editando config.json en GitHub.', 'error');
+  }
+}
+
+async function waitDeployed(modo){
+  for (let i = 0; i < 36; i++){
+    await new Promise(r => setTimeout(r, 5000));
+    try { const r = await fetch('config.json?t=' + Date.now(), {cache:'no-store'}); if (r.ok && (await r.json()).modo === modo) return true; } catch(e){}
+  }
+  return false;
+}
+
+document.getElementById('mode').addEventListener('click', async e => {
+  const b = e.target.closest('[data-modo]'); if (!b) return;
+  const modo = b.dataset.modo;
+  const body = {modo, ajuste: document.getElementById('adj')?.checked ? -0.01 : 0, minimo: Number(document.getElementById('minp')?.value || 0.02)};
+  const pinEl = document.getElementById('pin'); if (pinEl){ body.pin = pinEl.value; pinSet(pinEl.value); }
+  document.querySelectorAll('#mode button').forEach(x => x.disabled = true);
+  paintMode('Guardando el cambio…');
+  try {
+    const r = await fetch('api/modo', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body)});
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(j.message || 'error');
+    modeState.cfg = j;
+    paintMode(`Cambio guardado. Vercel está publicando la web con ${modo === 'suelo' ? 'los precios de suelo' : 'tus precios normales'}…`);
+    const ok = await waitDeployed(modo);
+    paintMode(ok ? `<b>Listo:</b> la web ya muestra ${modo === 'suelo' ? 'los precios de suelo' : 'tus precios normales'}.` : 'El cambio está guardado, pero Vercel está tardando en publicarlo. Recarga en un par de minutos.');
+  } catch(err){
+    paintMode(err.message === 'PIN incorrecto.' ? 'PIN incorrecto.' : 'No se pudo guardar el cambio: ' + esc(err.message), 'error');
+  }
+});
+
 async function load(){
+  showMode();
   const st = document.getElementById('status');
   try { const r = await fetch('stock.csv',{cache:'no-store'}); if (r.ok) parseCsv(await r.text()).forEach(p => { const c = CARDS.find(x => String(x.id) === p[0].trim()); if (!c) return; const pr = num(p[2]), q = parseInt(p[3],10); if (pr!=null) c.price = pr; if (!isNaN(q)) c.qty = Math.max(0,q); }); } catch(e){}
   let floors = new Map();
