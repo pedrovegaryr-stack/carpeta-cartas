@@ -318,53 +318,136 @@ async function thumbs(list){ return Promise.all(list.map(async r => { if (!IMGS[
   const w=200, h=Math.round(w*img.naturalHeight/img.naturalWidth); const cv=document.createElement('canvas'); cv.width=w; cv.height=h; const x=cv.getContext('2d'); x.fillStyle='#fff'; x.fillRect(0,0,w,h); x.drawImage(img,0,0,w,h); try{ return cv.toDataURL('image/jpeg',.82);}catch(e){return null;} })); }
 const pdfText = s => String(s).replace('♀','(F)').replace(/[^\x00-\xFF€…−]/g,'').replace('−','-');
 async function busy(btn, text, job){ const l=btn.innerHTML; btn.disabled=true; btn.textContent=text; try{ await job(); }catch(e){ console.error(e); toast('No se pudo generar el archivo. Revisa la conexión.'); } finally { btn.disabled=false; btn.innerHTML=l; } }
-const today = () => new Date().toLocaleDateString('es-ES');
+const today = () => new Date().toLocaleDateString('es-ES',{day:'2-digit',month:'2-digit',year:'numeric'});
+
+// Precio que enseña ahora la web para una carta, con la misma regla que index.html (applyMode) y config.json.
+function webPrice(r, c){
+  if (!c || c.modo !== 'suelo' || r.floor == null) return r.price;
+  const tope = Number(c.tope) || 0;
+  if (tope > 0 && r.price > tope) return r.price;
+  const t = Math.max(Number(c.minimo) || 0, Math.round((r.floor * (1 + (Number(c.porcentaje) || 0)/100) + (Number(c.ajuste) || 0)) * 100) / 100);
+  return t < r.price ? t : r.price;
+}
+function modeText(c){
+  if (!c || c.modo !== 'suelo') return 'La web muestra ahora tus precios normales.';
+  const bits = [`suelo +${Number(c.porcentaje) || 0} %`, `mínimo ${eur(Number(c.minimo) || 0)}`, Number(c.tope) > 0 ? `solo cartas de hasta ${eur(Number(c.tope))}` : 'todas las cartas'];
+  if (Number(c.ajuste) < 0) bits.push('1 céntimo menos');
+  return `La web muestra ahora precios de suelo (rebajas activadas): ${bits.join(', ')}.`;
+}
 
 document.getElementById('pdf').addEventListener('click', ev => busy(ev.currentTarget, 'Generando PDF…', async () => {
   if (!window.jspdf) await loadScript('https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js');
-  const list = filtered(), pics = await thumbs(list), T = totals(list);
+  let cfg = modeState.cfg;
+  if (!cfg){ try { const r = await fetch('config.json', {cache:'no-store'}); if (r.ok) cfg = await r.json(); } catch(e){} }
+  const list = filtered(), T = totals(list), pics = await thumbs(list), pic = new Map(list.map((r,i) => [r, pics[i]]));
+  const web = new Map(list.map(r => [r, webPrice(r, cfg)]));
   const doc = new window.jspdf.jsPDF({unit:'mm', format:'a4', orientation:'landscape'});
-  const W=297, H=210, M=12, ROW=24;
-  const ink=[16,32,42], muted=[104,124,130], gold=[176,124,20], line=[222,226,228];
+  const W=297, H=210, M=10, BOTTOM=H-12;
+  const ink=[16,32,42], muted=[104,124,130], gold=[176,124,20], line=[222,226,228], soft=[244,246,247];
   const colors = {good:[46,140,82], warn:[176,124,20], bad:[196,86,52], none:[130,140,145]};
-  const X = {img:M, name:M+20, qty:128, price:151, floor:174, diff:197, pct:214, lost:238, sit:244};
-  function head(first){
-    let y=M;
-    if (first){
-      doc.setFont('helvetica','bold'); doc.setFontSize(18); doc.setTextColor(...ink); doc.text('Mis precios frente al suelo de Cardmarket (español, NM)', M, y+7);
-      doc.setFont('helvetica','normal'); doc.setFontSize(9.5); doc.setTextColor(...muted);
-      doc.text(`Informe del ${today()} · suelo consultado el ${pdfText(floorDate||'-')} · ${list.length} cartas · ${T.copies} copias`, M, y+13);
-      doc.setFontSize(11); doc.setTextColor(...ink); doc.setFont('helvetica','bold');
-      doc.text(`A mis precios: ${eur(T.mine)}`, M, y+21);
-      doc.setTextColor(...gold); doc.text(`A precio suelo: ${eur(T.atFloor)}`, M+75, y+21);
-      doc.setTextColor(...colors.bad); doc.text(`Diferencia: -${eur(T.lost)}`, M+150, y+21);
-      doc.setTextColor(...ink); doc.text(`Soy el más barato en ${T.cheapest} de ${T.nF}`, M+215, y+21);
-      y += 27;
-    }
-    doc.setFillColor(...ink); doc.rect(M, y, W-2*M, 7, 'F'); doc.setFontSize(8.5); doc.setTextColor(255,255,255); doc.setFont('helvetica','bold');
-    doc.text('Carta', X.name, y+4.8); doc.text('Cant.', X.qty, y+4.8, {align:'right'}); doc.text('Mi precio', X.price, y+4.8, {align:'right'});
-    doc.text('Suelo ES', X.floor, y+4.8, {align:'right'}); doc.text('Dif.', X.diff, y+4.8, {align:'right'}); doc.text('%', X.pct, y+4.8, {align:'right'});
-    doc.text('Si bajo', X.lost, y+4.8, {align:'right'}); doc.text('Situación', X.sit, y+4.8);
-    return y+9;
-  }
-  let y = head(true);
-  list.forEach((r,i) => {
-    if (y+ROW > H-M-6){ doc.addPage(); y = head(false); }
-    if (pics[i]) doc.addImage(pics[i], 'JPEG', X.img+1, y+1, 15, 21);
-    doc.setFont('helvetica','bold'); doc.setFontSize(10); doc.setTextColor(...ink); doc.text(pdfText(r.name), X.name, y+9);
-    doc.setFont('helvetica','normal'); doc.setFontSize(8.5); doc.setTextColor(...muted); doc.text(pdfText(r.numLabel==='Código' ? r.set : `${r.set} · ${r.numLabel}`), X.name, y+14);
-    doc.setFontSize(9.5); doc.setTextColor(...ink);
-    doc.text(String(r.qty), X.qty, y+11, {align:'right'}); doc.text(eur(r.price), X.price, y+11, {align:'right'});
-    doc.text(r.floor==null?'-':eur(r.floor), X.floor, y+11, {align:'right'});
-    doc.text(r.diff==null?'-':(r.diff>0?'+':'')+eur(r.diff), X.diff, y+11, {align:'right'});
-    doc.text(r.pct==null?'-':pctf(r.pct), X.pct, y+11, {align:'right'});
-    doc.text(r.lost==null?'-':'-'+eur(r.lost), X.lost, y+11, {align:'right'});
-    doc.setFont('helvetica','bold'); doc.setTextColor(...colors[r.sit.k]); doc.text(pdfText(r.sit.label), X.sit, y+11);
-    doc.setDrawColor(...line); doc.line(M, y+ROW-1, W-M, y+ROW-1); y += ROW;
+  const fit = (s, w) => doc.splitTextToSize(pdfText(s), w)[0] || '';
+
+  /* ---- Página 1: resumen ---- */
+  let y = M;
+  doc.setFont('helvetica','bold'); doc.setFontSize(18); doc.setTextColor(...ink); doc.text('Mis precios frente al suelo de Cardmarket (español, NM)', M, y+7);
+  doc.setFont('helvetica','normal'); doc.setFontSize(9.5); doc.setTextColor(...muted);
+  doc.text(pdfText(`Informe del ${today()} · suelo consultado el ${floorDate||'-'} · ${list.length} cartas · ${T.copies} copias`), M, y+13);
+  doc.setTextColor(...ink); doc.text(pdfText(modeText(cfg)), M, y+18.5);
+  y += 23;
+  // 4 totales grandes
+  const kw = (W - 2*M - 3*5) / 4;
+  const kpis = [
+    ['A mis precios', eur(T.mine), `${list.length} cartas · ${T.copies} copias`, ink],
+    ['A precio suelo', eur(T.atFloor), `${T.nF} cartas con datos de suelo`, gold],
+    ['Diferencia', '-' + eur(T.lost), `${T.mineF ? Math.round(T.lost/T.mineF*100) : 0} % menos si bajo todo al suelo`, colors.bad],
+    ['Posición', `${T.cheapest} / ${T.nF}`, 'cartas en las que ya soy el más barato', colors.good]];
+  kpis.forEach(([k, v, sub, col], i) => {
+    const x = M + i*(kw+5);
+    doc.setFillColor(...soft); doc.setDrawColor(...line); doc.roundedRect(x, y, kw, 25, 2, 2, 'FD');
+    doc.setFont('helvetica','bold'); doc.setFontSize(8.5); doc.setTextColor(...muted); doc.text(k.toUpperCase(), x+4, y+6);
+    doc.setFontSize(20); doc.setTextColor(...col); doc.text(v, x+4, y+15);
+    doc.setFont('helvetica','normal'); doc.setFontSize(8.5); doc.setTextColor(...muted); doc.text(fit(sub, kw-8), x+4, y+21);
   });
+  y += 29;
+  // Recuento por situación
+  const counts = [['good','Soy el más barato'],['warn','Cerca del suelo'],['bad','Muy por encima'],['none','Sin datos']].map(([k,l]) => [k, l, list.filter(r => r.sit.k===k).length]);
+  doc.setFont('helvetica','bold'); doc.setFontSize(11); doc.setTextColor(...ink); doc.text('Cartas por situación', M, y+4);
+  y += 7;
+  const sw = (W - 2*M - 3*5) / 4;
+  counts.forEach(([k, l, n], i) => {
+    const x = M + i*(sw+5);
+    doc.setFillColor(...colors[k]); doc.roundedRect(x, y, sw, 13, 2, 2, 'F');
+    doc.setFont('helvetica','bold'); doc.setFontSize(16); doc.setTextColor(255,255,255); doc.text(String(n), x+4, y+9);
+    const nw = doc.getTextWidth(String(n)); doc.setFontSize(10); doc.text(pdfText(l), x+4+nw+3, y+8.6);
+  });
+  const barY = y + 15; let bx = M;
+  counts.forEach(([k,,n]) => { const w = list.length ? (W-2*M) * n / list.length : 0; if (w){ doc.setFillColor(...colors[k]); doc.rect(bx, barY, w, 2, 'F'); bx += w; } });
+  y += 20;
+  // Top 10 «si bajo al suelo»
+  const top = list.filter(r => r.lost > 0).sort((a,b) => b.lost - a.lost).slice(0, 10);
+  doc.setFont('helvetica','bold'); doc.setFontSize(11); doc.setTextColor(...ink); doc.text('Top 10: lo que más dejaría de ganar si bajo al suelo', M, y+4);
+  y += 6;
+  const TX = {n:M+2, img:M+8, name:M+17, qty:150, price:178, floor:204, web:234, lost:W-M-2};
+  doc.setFillColor(...ink); doc.rect(M, y, W-2*M, 6.5, 'F'); doc.setFontSize(8); doc.setTextColor(255,255,255);
+  doc.text('#', TX.n, y+4.4); doc.text('Carta', TX.name, y+4.4); doc.text('Cant.', TX.qty, y+4.4, {align:'right'}); doc.text('Mi precio', TX.price, y+4.4, {align:'right'});
+  doc.text('Suelo ES', TX.floor, y+4.4, {align:'right'}); doc.text('Precio web ahora', TX.web, y+4.4, {align:'right'}); doc.text('Si bajo al suelo', TX.lost, y+4.4, {align:'right'});
+  y += 7.5;
+  if (!top.length){ doc.setFont('helvetica','normal'); doc.setFontSize(9.5); doc.setTextColor(...muted); doc.text('Ninguna carta por encima del suelo.', M+2, y+5); }
+  top.forEach((r, i) => {
+    const RH = 9.3;
+    if (pic.get(r)) doc.addImage(pic.get(r), 'JPEG', TX.img, y+0.4, 6.1, 8.5);
+    doc.setFont('helvetica','bold'); doc.setFontSize(9); doc.setTextColor(...muted); doc.text(String(i+1), TX.n, y+6);
+    doc.setTextColor(...ink); doc.text(fit(r.name, 70), TX.name, y+4.1);
+    doc.setFont('helvetica','normal'); doc.setFontSize(7.5); doc.setTextColor(...muted); doc.text(fit(r.numLabel==='Código' ? r.set : `${r.set} · ${r.numLabel}`, 90), TX.name, y+7.7);
+    doc.setFontSize(9); doc.setTextColor(...ink);
+    doc.text(String(r.qty), TX.qty, y+6, {align:'right'}); doc.text(eur(r.price), TX.price, y+6, {align:'right'}); doc.text(r.floor==null?'-':eur(r.floor), TX.floor, y+6, {align:'right'});
+    const wp = web.get(r); doc.setFont('helvetica', wp < r.price ? 'bold' : 'normal'); doc.setTextColor(...(wp < r.price ? gold : ink)); doc.text(eur(wp), TX.web, y+6, {align:'right'});
+    doc.setFont('helvetica','bold'); doc.setTextColor(...colors.bad); doc.text('-' + eur(r.lost), TX.lost, y+6, {align:'right'});
+    doc.setDrawColor(...line); doc.line(M, y+RH-0.2, W-M, y+RH-0.2); y += RH;
+  });
+
+  /* ---- Tabla compacta: ~12 filas por página ---- */
+  const ROW = 13.6;
+  const X = {img:M, name:M+11, qty:136, price:156, floor:175, web:203, diff:224, pct:239, lost:257, sit:260};
+  function head(){
+    doc.setFont('helvetica','bold'); doc.setFontSize(10); doc.setTextColor(...ink);
+    doc.text(pdfText(`Todas las cartas (${list.length}) · informe del ${today()}`), M, M+5);
+    y = M + 8;
+    doc.setFillColor(...ink); doc.rect(M, y, W-2*M, 7, 'F'); doc.setFontSize(8.2); doc.setTextColor(255,255,255);
+    doc.text('Carta', X.name, y+4.8); doc.text('Cant.', X.qty, y+4.8, {align:'right'}); doc.text('Mi precio', X.price, y+4.8, {align:'right'});
+    doc.text('Suelo ES', X.floor, y+4.8, {align:'right'}); doc.text('Precio web ahora', X.web, y+4.8, {align:'right'}); doc.text('Dif.', X.diff, y+4.8, {align:'right'});
+    doc.text('%', X.pct, y+4.8, {align:'right'}); doc.text('Si bajo', X.lost, y+4.8, {align:'right'}); doc.text('Situación', X.sit, y+4.8);
+    y += 8;
+  }
+  doc.addPage(); head();
+  list.forEach(r => {
+    if (y + ROW > BOTTOM){ doc.addPage(); head(); }
+    if (pic.get(r)) doc.addImage(pic.get(r), 'JPEG', X.img+0.5, y+0.6, 8.8, 12.3);
+    else { doc.setFillColor(...soft); doc.rect(X.img+0.5, y+0.6, 8.8, 12.3, 'F'); }
+    doc.setFont('helvetica','bold'); doc.setFontSize(9.5); doc.setTextColor(...ink); doc.text(fit(r.name, X.qty-X.name-14), X.name, y+5.6);
+    doc.setFont('helvetica','normal'); doc.setFontSize(7.8); doc.setTextColor(...muted);
+    doc.text(fit((r.numLabel==='Código' ? r.set : `${r.set} · ${r.numLabel}`) + (r.tag ? ` · ${r.tag}` : ''), X.qty-X.name-14), X.name, y+10);
+    doc.setFontSize(9); doc.setTextColor(...ink);
+    doc.text(String(r.qty), X.qty, y+7.6, {align:'right'}); doc.text(eur(r.price), X.price, y+7.6, {align:'right'});
+    doc.text(r.floor==null?'-':eur(r.floor), X.floor, y+7.6, {align:'right'});
+    const wp = web.get(r); doc.setFont('helvetica', wp < r.price ? 'bold' : 'normal'); doc.setTextColor(...(wp < r.price ? gold : ink)); doc.text(eur(wp), X.web, y+7.6, {align:'right'});
+    doc.setFont('helvetica','normal'); doc.setTextColor(...ink);
+    doc.text(r.diff==null?'-':(r.diff>0?'+':'')+eur(r.diff), X.diff, y+7.6, {align:'right'});
+    doc.text(r.pct==null?'-':pctf(r.pct), X.pct, y+7.6, {align:'right'});
+    doc.text(r.lost==null?'-':r.lost>0.005?'-'+eur(r.lost):eur(0), X.lost, y+7.6, {align:'right'});
+    doc.setFont('helvetica','bold'); doc.setFontSize(8.2); doc.setTextColor(...colors[r.sit.k]); doc.text(pdfText(r.sit.label), X.sit, y+7.6);
+    doc.setDrawColor(...line); doc.line(M, y+ROW-0.3, W-M, y+ROW-0.3); y += ROW;
+  });
+  if (y + 9 > BOTTOM){ doc.addPage(); head(); }
+  doc.setFont('helvetica','bold'); doc.setFontSize(9.5); doc.setTextColor(...ink);
+  doc.text(`Total (${list.length} cartas · ${T.copies} copias)`, X.name, y+6);
+  doc.text(eur(T.mine), X.price, y+6, {align:'right'}); doc.text(eur(T.atFloor), X.floor, y+6, {align:'right'});
+  doc.text(eur(list.reduce((a,r)=>a+web.get(r)*r.qty,0)), X.web, y+6, {align:'right'});
+  doc.setTextColor(...colors.bad); doc.text('-' + eur(T.lost), X.lost, y+6, {align:'right'});
+
   const pages = doc.getNumberOfPages();
   for (let p=1;p<=pages;p++){ doc.setPage(p); doc.setFont('helvetica','normal'); doc.setFontSize(7.5); doc.setTextColor(...muted);
-    doc.text('Suelo = oferta más barata de otros vendedores en español y Near Mint. No incluye comisión de Cardmarket ni envío.', M, H-6);
+    doc.text('Suelo = oferta más barata de otros vendedores en español y Near Mint. «Precio web ahora» = lo que enseña la web según config.json. No incluye comisión de Cardmarket ni envío.', M, H-6);
     doc.text(`Página ${p} de ${pages}`, W-M, H-6, {align:'right'}); }
   saveBlob(doc.output('blob'), `informe-suelo_${stamp()}.pdf`); toast('PDF descargado');
 }));

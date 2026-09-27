@@ -466,54 +466,110 @@ async function busy(btn, text, job){
 
 document.getElementById('export-pdf').addEventListener('click', ev => busy(ev.currentTarget, 'Generando PDF…', async () => {
   if (!window.jspdf) await loadScript('https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js');
-  const list = byPrice(); const pics = await thumbs(list);
+  // Secciones sin repetir cartas: las de 3 € o más solo salen en «Destacadas».
+  const L = live(), rest = L.filter(c => !isFeatured(c));
+  const isPika = c => c.name.startsWith('Pikachu'), byNum = (a,b) => a.num-b.num || a.name.localeCompare(b.name,'es');
+  const sections = [
+    {t:'Destacadas', sub:'3 € o más', list: L.filter(isFeatured).sort((a,b)=>b.price-a.price || a.num-b.num)},
+    {t:'Pikachu', list: rest.filter(isPika).sort(byNum)},
+    {t:'30th Celebration', sub:'por número', list: rest.filter(c => !isPika(c) && c.set==='30th Celebration').sort(byNum)},
+    {t:'Otras colecciones', list: rest.filter(c => !isPika(c) && c.set!=='30th Celebration' && c.set!=='Códigos online').sort((a,b)=>a.set.localeCompare(b.set,'es') || byNum(a,b))},
+    {t:'Códigos online', list: rest.filter(c => !isPika(c) && c.set==='Códigos online').sort((a,b)=>b.price-a.price)}
+  ].filter(s => s.list.length);
+  const all = sections.flatMap(s => s.list), pics = await thumbs(all), pic = new Map(all.map((c,i) => [c, pics[i]]));
+  const total = L.reduce((a,c)=>a+c.price*c.qty,0), copies = L.reduce((a,c)=>a+c.qty,0), onSale = L.filter(c => c.orig).length;
+
   const doc = new window.jspdf.jsPDF({unit:'mm', format:'a4'});
-  const W = 210, M = 12, ROW = 32, IW = 20, IH = 28;
-  const total = list.reduce((a,c)=>a+c.price*c.qty,0), copies = list.reduce((a,c)=>a+c.qty,0);
-  const ink = [16,32,42], muted = [104,124,130], gold = [176,124,20], line = [222,226,228];
-  const cols = {img:M, name:M+25, qty:W-M-62, price:W-M-36, sub:W-M};
-  function header(first){
-    let y = M;
-    if (first){
-      doc.setFont('helvetica','bold'); doc.setFontSize(20); doc.setTextColor(...ink);
-      doc.text('Carpeta de venta · Pokémon TCG', M, y+8);
-      doc.setFont('helvetica','normal'); doc.setFontSize(10); doc.setTextColor(...muted);
-      doc.text(`Stock disponible a ${today()} · ${list.length} cartas distintas · ${copies} copias · Estado Near Mint`, M, y+15);
-      doc.setFont('helvetica','bold'); doc.setFontSize(14); doc.setTextColor(...gold);
-      doc.text(`Valor total del stock: ${eur(total)}`, M, y+23);
-      y += 30;
-    }
-    doc.setFillColor(...ink); doc.rect(M, y, W-2*M, 8, 'F');
-    doc.setFont('helvetica','bold'); doc.setFontSize(9); doc.setTextColor(255,255,255);
-    doc.text('Foto', cols.img+2, y+5.4); doc.text('Carta', cols.name, y+5.4);
-    doc.text('Cant.', cols.qty, y+5.4, {align:'right'}); doc.text('Precio', cols.price, y+5.4, {align:'right'}); doc.text('Subtotal', cols.sub-2, y+5.4, {align:'right'});
-    return y + 10;
+  const W = 210, H = 297, M = 10, BOTTOM = H - 12;
+  const ink = [16,32,42], muted = [104,124,130], gold = [176,124,20], line = [222,226,228], sale = [196,86,52], soft = [238,241,242];
+  // Cuadrícula: 4 por fila, 5 filas por página
+  const PER = 4, GX = 4, CW = (W - 2*M - (PER-1)*GX) / PER, IH = 36, IW = IH / 1.4, ROWH = IH + 15.5, TITLEH = 11, TOTALH = 16;
+  const fit = (s, w) => doc.splitTextToSize(pdfText(s), w)[0] || '';
+
+  let y = M;
+  // Cabecera
+  doc.setFont('helvetica','bold'); doc.setFontSize(20); doc.setTextColor(...ink);
+  doc.text('Carpeta de BePokemon · Pokémon TCG', M, y+8);
+  doc.setFont('helvetica','normal'); doc.setFontSize(10); doc.setTextColor(...muted);
+  doc.text(`Stock a ${today()} · ${L.length} cartas distintas · ${copies} copias · Estado Near Mint`, M, y+14.5);
+  doc.setFont('helvetica','bold'); doc.setTextColor(...gold);
+  doc.text('rockethouse.vercel.app', M, y+20.5);
+  const ww = doc.getTextWidth('rockethouse.vercel.app');
+  doc.setFont('helvetica','normal'); doc.setTextColor(...ink);
+  doc.text('  ·  Pide por mensaje indicando nombre y número de la carta', M + ww, y+20.5);
+  y += 24;
+  if (onSale){
+    const t = `Precios rebajados para compras por mensaje (${onSale} cartas)`;
+    doc.setFont('helvetica','bold'); doc.setFontSize(9.5); const tw = doc.getTextWidth(t);
+    doc.setFillColor(...sale); doc.roundedRect(M, y, tw + 8, 7, 1.5, 1.5, 'F');
+    doc.setTextColor(255,255,255); doc.text(t, M + 4, y + 4.9);
+    y += 10;
   }
-  let y = header(true);
-  list.forEach((c,i) => {
-    if (y + ROW > 297 - M - 8){ doc.addPage(); y = header(false); }
-    if (pics[i]) doc.addImage(pics[i], 'JPEG', cols.img+1, y+1, IW, IH);
-    else { doc.setFillColor(235,238,240); doc.rect(cols.img+1, y+1, IW, IH, 'F'); }
-    doc.setFont('helvetica','bold'); doc.setFontSize(11.5); doc.setTextColor(...ink);
-    doc.text(pdfText(c.name), cols.name, y+9, {maxWidth: cols.qty-cols.name-14});
-    doc.setFont('helvetica','normal'); doc.setFontSize(9); doc.setTextColor(...muted);
-    doc.text(pdfText(c.numLabel==='Código' ? c.set : `${c.set} · ${c.numLabel}`), cols.name, y+15);
-    if (c.tag) doc.text(pdfText(c.tag), cols.name, y+20);
-    doc.setFontSize(10.5); doc.setTextColor(...ink);
-    doc.text(String(c.qty), cols.qty, y+15, {align:'right'});
-    doc.text(eur(c.price), cols.price, y+15, {align:'right'});
-    doc.setFont('helvetica','bold'); doc.text(eur(c.price*c.qty), cols.sub-2, y+15, {align:'right'});
-    doc.setDrawColor(...line); doc.line(M, y+ROW-1, W-M, y+ROW-1);
-    y += ROW;
+  y += 2;
+
+  function sectionTitle(s, cont){
+    doc.setFillColor(...ink); doc.rect(M, y, W-2*M, 8, 'F');
+    doc.setFont('helvetica','bold'); doc.setFontSize(11); doc.setTextColor(255,255,255);
+    const t = s.t + (cont ? ' (continuación)' : '');
+    doc.text(t, M+3, y+5.6);
+    if (s.sub && !cont){ const tw = doc.getTextWidth(t); doc.setFont('helvetica','normal'); doc.setFontSize(9); doc.setTextColor(190,205,210); doc.text(s.sub, M+3+tw+3, y+5.6); }
+    const n = s.list.reduce((a,c)=>a+c.qty,0);
+    doc.setFont('helvetica','normal'); doc.setFontSize(9); doc.setTextColor(190,205,210);
+    doc.text(`${s.list.length} carta${s.list.length===1?'':'s'} · ${n} copia${n===1?'':'s'}`, W-M-3, y+5.6, {align:'right'});
+    y += TITLEH;
+  }
+  // Escribe trozos de texto seguidos, centrados en cx. Cada trozo: {t, font, size, color, strike}
+  function runs(parts, cx, yy){
+    const w = parts.map(p => { doc.setFont('helvetica', p.font); doc.setFontSize(p.size); return doc.getTextWidth(p.t); });
+    let x = cx - w.reduce((a,b)=>a+b,0) / 2;
+    parts.forEach((p,i) => {
+      doc.setFont('helvetica', p.font); doc.setFontSize(p.size); doc.setTextColor(...p.color); doc.text(p.t, x, yy);
+      if (p.strike){ doc.setDrawColor(...p.color); doc.setLineWidth(0.25); doc.line(x, yy-1.1, x+w[i]-0.8, yy-1.1); doc.setLineWidth(0.2); }
+      x += w[i];
+    });
+  }
+  function cardCell(c, x){
+    const cx = x + CW/2, ix = cx - IW/2, p = pic.get(c);
+    if (p) doc.addImage(p, 'JPEG', ix, y, IW, IH);
+    else { doc.setFillColor(...soft); doc.rect(ix, y, IW, IH, 'F'); doc.setFont('helvetica','bold'); doc.setFontSize(7); doc.setTextColor(...muted);
+      doc.text(doc.splitTextToSize(pdfText(c.name), IW-3).slice(0,3), cx, y+IH/2-2, {align:'center'}); }
+    doc.setDrawColor(...line); doc.rect(ix, y, IW, IH);
+    if (c.orig){ doc.setFillColor(...sale); doc.roundedRect(ix+1, y+1, 15, 4.6, 1, 1, 'F'); doc.setFont('helvetica','bold'); doc.setFontSize(6.5); doc.setTextColor(255,255,255); doc.text('Rebajada', ix+8.5, y+4.2, {align:'center'}); }
+    doc.setFont('helvetica','bold'); doc.setFontSize(8.8); doc.setTextColor(...ink);
+    doc.text(fit(c.name, CW-1), cx, y+IH+4, {align:'center'});
+    doc.setFont('helvetica','normal'); doc.setFontSize(7.2); doc.setTextColor(...muted);
+    doc.text(fit(c.numLabel==='Código' ? c.set : `${c.numLabel} · ${c.set}`, CW-1), cx, y+IH+7.8, {align:'center'});
+    const q = {t:`  x${c.qty}`, font:'normal', size:8.5, color:muted};
+    runs(c.orig
+      ? [{t:eur(c.orig), font:'normal', size:7.5, color:muted, strike:true}, {t:' '+eur(c.price), font:'bold', size:10, color:sale}, q]
+      : [{t:eur(c.price), font:'bold', size:10, color:ink}, q], cx, y+IH+12.2);
+  }
+  const newPage = () => { doc.addPage(); y = M; };
+  sections.forEach((s, si) => {
+    const rows = []; for (let i = 0; i < s.list.length; i += PER) rows.push(s.list.slice(i, i+PER));
+    const lastSection = si === sections.length - 1;
+    // No empezar una sección al final de la página con una sola fila (si tiene más de una)
+    const first = TITLEH + ROWH * Math.min(2, rows.length) + (lastSection && rows.length <= 2 ? TOTALH : 0);
+    if (y + first > BOTTOM) newPage();
+    sectionTitle(s, false);
+    rows.forEach((row, ri) => {
+      // La última fila se lleva el total con ella si no cabe todo
+      const need = ROWH + (lastSection && ri === rows.length-1 ? TOTALH : 0);
+      if (y + need > BOTTOM){ newPage(); sectionTitle(s, true); }
+      row.forEach((c, i) => cardCell(c, M + i*(CW+GX)));
+      y += ROWH;
+    });
+    y += 2;
   });
-  if (y + 14 > 297 - M - 8){ doc.addPage(); y = M; }
+  // Total
+  doc.setDrawColor(...ink); doc.setLineWidth(0.4); doc.line(M, y+1, W-M, y+1); doc.setLineWidth(0.2);
   doc.setFont('helvetica','bold'); doc.setFontSize(12); doc.setTextColor(...ink);
-  doc.text(`TOTAL · ${copies} copias`, cols.name, y+9);
-  doc.setTextColor(...gold); doc.text(eur(total), cols.sub-2, y+9, {align:'right'});
+  doc.text(`TOTAL · ${L.length} cartas · ${copies} copias`, M, y+8.5);
+  doc.setTextColor(...gold); doc.text(eur(total), W-M, y+8.5, {align:'right'});
   const pages = doc.getNumberOfPages();
   for (let p=1; p<=pages; p++){ doc.setPage(p); doc.setFont('helvetica','normal'); doc.setFontSize(8); doc.setTextColor(...muted);
-    doc.text('Precios por unidad en euros. Todas las cartas están publicadas en Cardmarket.', M, 297-7);
-    doc.text(`Página ${p} de ${pages}`, W-M, 297-7, {align:'right'}); }
+    doc.text('Precios por unidad en euros. Todas las cartas están publicadas en Cardmarket.', M, H-6);
+    doc.text(`Página ${p} de ${pages}`, W-M, H-6, {align:'right'}); }
   saveBlob(doc.output('blob'), `stock-cartas_${stamp()}.pdf`); toast('PDF descargado');
 }));
 
