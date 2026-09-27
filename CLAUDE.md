@@ -21,7 +21,7 @@ Habla con Jose en español, con pasos claros. Antes de cualquier acción irrever
 | `suelo.csv` | Precio más barato de otros vendedores en Cardmarket (español, NM). | Claude Code |
 | `suelo_pendiente.csv` | Suelos mirados al listar cartas que aún no tienen id (`url;minimo;ofertas;fecha`). Pasan a `suelo.csv` en el Flujo B. | Claude Code |
 | `config.json` | Modo de precios (normal / rebajas). **No lo sobrescribas**: lo gestiona el botón de `informe.html` vía `api/modo.js`. | Botón del informe |
-| `img/<id>.webp` | Foto de cada carta. `img/w<num>.webp` = fotos de cartas deseadas. | Claude Code |
+| `img/<id>.webp` | Foto de cada carta. `img/w<num>.webp` = fotos de cartas deseadas. `img/30c/<código>.webp` = resto de la colección 30th Celebration. | Claude Code |
 | `api/modo.js` | Función de Vercel que edita `config.json` en GitHub (variables `GITHUB_TOKEN`, `GITHUB_REPO`). | Nunca |
 
 ### `cartas.json`
@@ -37,6 +37,11 @@ Habla con Jose en español, con pasos claros. Antes de cualquier acción irrever
      "url": "https://www.cardmarket.com/es/Pokemon/Products/Singles/30th-Celebration/Pikachu-30C023",
      "img": "img/w023.webp", "attack": "Thunder Shock", "tag": "", "buscada": true,
      "suelo": 0.54, "ofertas": "50+", "fecha": "27/09/2026"}
+  ],
+  "coleccion_30c": [
+    {"num": "BS 58", "nombre": "Pikachu", "numLabel": "BS 58", "tipo": "classic", "tag": "Classic",
+     "url": "https://www.cardmarket.com/es/Pokemon/Products/Singles/30th-Celebration/Pikachu-30CBS-58",
+     "img": "img/30c/BS-58.webp", "suelo": 25.0, "ofertas": "12", "fecha": "27/09/2026"}
   ]
 }
 ```
@@ -54,6 +59,11 @@ Habla con Jose en español, con pasos claros. Antes de cualquier acción irrever
   (la página las marca sola como «ya tengo» / «me falta» cruzando `url` con el stock). `attack`: ataque(s) de la carta, para distinguir versiones.
   `suelo` / `ofertas` / `fecha`: suelo en español NM (mismas reglas del Flujo C); `suelo` es `null` si no hay ofertas.
   Fotos en `img/w<num>.webp` (380 px, calidad 78); si la carta ya está en el stock, usa su foto `img/<id>.webp`.
+- `coleccion_30c`: **todas** las cartas de 30th Celebration (191: 128 normales, 30 ilustraciones especiales `tipo: especial`,
+  33 Classic Collection `tipo: classic` con código tipo `BS 58`). Sale del listado masivo de la expansión «Celebración 30.º Aniversario»
+  (`idExpansion=6601`, 2 páginas). Foto: la del stock o la de la deseada si existe; si no, `img/30c/<código>.webp` (código sin espacios
+  ni barras: `BS-58`, `R-RGB`). `suelo`/`ofertas`/`fecha` con las reglas del Flujo C. Se usa en `intercambio.html` para marcar
+  las cartas disponibles de la otra persona.
 
 ### `stock.csv` (separador `;`, decimales con punto o coma)
 ```
@@ -149,8 +159,9 @@ Convertir a WebP de 380 px de ancho, calidad 78 (Pillow) y guardar como `img/<id
 Para cada carta con cantidad > 0 en `stock.csv`: abre su `url` + `?language=4&minCondition=2`
 (los «Código Live» sin filtro de idioma), coge la oferta más barata **ignorando las del propio Jose**
 (su nombre de vendedor en Cardmarket: `USUARIO_CM = BePokemon`)
-y escribe `suelo.csv`. **Haz lo mismo con todas las `deseadas` de `cartas.json`** (campos `suelo`, `ofertas`, `fecha`),
-para que `intercambio.html` tenga los valores al día. 15–20 s entre cartas. Comprueba 2–3 a mano antes de hacerlas todas. Después commit + push.
+y escribe `suelo.csv`. **Haz lo mismo con todas las `deseadas` y toda la `coleccion_30c` de `cartas.json`** (campos `suelo`, `ofertas`, `fecha`),
+para que `intercambio.html` tenga los valores al día (una carta que esté en varias listas se consulta una sola vez; son unas 190 páginas,
+más de una hora: avisa a Jose antes y guarda el progreso para poder seguir si salta Cloudflare). 15–20 s entre cartas. Comprueba 2–3 a mano antes de hacerlas todas. Después commit + push.
 
 **Cómo leer el suelo de una carta** (también para el modo «suelo» del Flujo A):
 - **No pulses «Mostrar más resultados».** Las ofertas vienen ordenadas de más barata a más cara: el suelo es la **primera oferta
@@ -185,7 +196,13 @@ para que `intercambio.html` tenga los valores al día. 15–20 s entre cartas. C
     calculadas sin ella. Las opciones nunca se parten: si no caben en la primera página, van enteras a la segunda.
     Pie: «Enviado por BePokemon · Responde con el número de opción que prefieras (o propón otra)».
   - «Cuadrar» nunca sugiere una carta que ya esté en Recibo o en Doy (se compara por url).
-  - La selección, el nombre, el límite y la opción elegida se guardan en el navegador (localStorage).
+  - «Cartas disponibles de [nombre]» (en la columna Recibo): rejilla con toda `coleccion_30c` (foto, número, suelo) donde Jose marca
+    con un clic las que tiene la otra persona; buscador por nombre o número; «Pegar números» acepta `012, 047, 88 131` y códigos
+    Classic (`BS 58`); contador «X cartas disponibles · Y €». Se guardan **por persona** (al volver a escribir su nombre se recuperan).
+  - Si la otra persona tiene disponibles marcadas, «Cuadrar» saca sus opciones **solo de esas** (cualquier carta, no solo Pikachu);
+    en empate, primero las que me faltan y los Pikachu. Si no hay ninguna marcada, usa las deseadas como siempre.
+    El PDF no enseña la lista de disponibles, solo las opciones.
+  - La selección, el nombre, el límite, la opción elegida y las disponibles de cada persona se guardan en el navegador (localStorage).
 
 ---
 

@@ -106,6 +106,23 @@ h2{font:800 22px/1.1 var(--display);margin:0}
 .who{display:flex;flex-direction:column;gap:4px;margin-bottom:12px}
 .who span{font:700 12px var(--body);color:var(--muted);letter-spacing:.04em}
 .who input{background:var(--pocket);color:var(--ink);border:1px solid var(--edge);border-radius:8px;padding:8px 11px;font:15px var(--body)}
+.disp{margin:0 0 14px;border:1px solid var(--edge);border-radius:10px;background:var(--pocket)}
+.disp>summary{cursor:pointer;padding:10px 12px;display:flex;justify-content:space-between;gap:10px;align-items:baseline;list-style:none}
+.disp>summary::-webkit-details-marker{display:none}
+.disp>summary b{font:700 14px var(--body)} .disp>summary span{color:var(--muted);font-size:12.5px;white-space:nowrap}
+.disp>summary b::before{content:'▸ ';color:var(--faint)} .disp[open]>summary b::before{content:'▾ '}
+.disp-body{padding:0 12px 12px;display:flex;flex-direction:column;gap:8px}
+.disp-tools{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.disp-tools input[type=text],.disp-tools input[type=search]{flex:1 1 160px;min-width:0;background:var(--binder);color:var(--ink);border:1px solid var(--edge);border-radius:8px;padding:7px 10px;font:13.5px var(--body)}
+.lim input[type=checkbox]{width:auto;padding:0}
+.disp-msg{font-size:12.5px;color:var(--muted);min-height:1em}
+.disp-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(74px,1fr));gap:6px;max-height:430px;overflow-y:auto;padding-right:2px}
+.dc{position:relative;display:flex;flex-direction:column;gap:2px;align-items:stretch;padding:4px;border-radius:8px;border:1.5px solid transparent;background:var(--binder);color:var(--ink);cursor:pointer;font:inherit;text-align:center}
+.dc img{width:100%;aspect-ratio:5/7;object-fit:cover;border-radius:3px;display:block;opacity:.55}
+.dc b{font:600 11px var(--mono)} .dc small{font:10.5px var(--mono);color:var(--faint)}
+.dc.on{border-color:var(--good);background:rgba(111,194,138,.12)} .dc.on img{opacity:1}
+.dc.on::after{content:'✓';position:absolute;top:6px;right:6px;width:18px;height:18px;border-radius:50%;background:var(--good);color:#0f2a1a;font:800 12px/18px var(--body)}
+.dc:hover img{opacity:1}
 .toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:var(--ink);color:#10202a;font-weight:700;padding:10px 14px;border-radius:8px;font-size:13px}
 @media (max-width:860px){ .cols{grid-template-columns:1fr} .combos{grid-template-columns:1fr} }
 @media (max-width:560px){ .scale-row{grid-template-columns:1fr 1fr} .diff{grid-column:1/-1;order:3} .tot b{font-size:22px} }
@@ -139,6 +156,23 @@ h2{font:800 22px/1.1 var(--display);margin:0}
   <div class="cols" id="cols" hidden>
     <section class="col" data-side="recibo">
       <label class="who" for="nombre"><span>Nombre de la otra persona</span><input type="text" id="nombre" maxlength="40" placeholder="Ej.: Ana" autocomplete="off"></label>
+      <details class="disp" id="disp">
+        <summary><b id="disp-title">Cartas disponibles</b><span id="disp-count">0 cartas disponibles · 0,00 €</span></summary>
+        <div class="disp-body">
+          <p class="note" style="margin:0">30th Celebration completa. Marca con un clic las cartas que tiene para cambiar: «Cuadrar» solo propondrá esas.</p>
+          <div class="disp-tools">
+            <input type="text" id="disp-paste" placeholder="Pegar números: 012, 047, 088, 131" autocomplete="off">
+            <button class="btn sm" type="button" id="disp-mark">Marcar</button>
+          </div>
+          <div class="disp-tools">
+            <input type="search" id="disp-q" placeholder="Buscar por nombre o número…" autocomplete="off">
+            <label class="lim"><input type="checkbox" id="disp-only"> Solo marcadas</label>
+            <button class="btn sm" type="button" id="disp-clear">Desmarcar todas</button>
+          </div>
+          <div class="disp-msg" id="disp-msg"></div>
+          <div class="disp-grid" id="disp-grid"></div>
+        </div>
+      </details>
       <div class="col-head"><h2 id="h-recibo">Recibo</h2><span class="note" id="n-recibo"></span></div>
       <ul class="sel" id="sel-recibo"></ul>
       <input class="search" type="search" id="q-recibo" placeholder="Buscar en mis deseadas…" autocomplete="off">
@@ -163,7 +197,9 @@ let sel = {recibo: [], doy: []};   // [{key, qty}]
 let vals = {};                      // valores cambiados a mano: key -> €
 // nombre de la otra persona, límite de «Cuadrar» para mis cartas (0 = sin límite)
 // y la última combinación añadida con «Cuadrar» ({side, chosen:[keys], alts:[[keys]…]}) para el PDF.
-let meta = {nombre: '', limite: 2, elegida: null};
+// disp: cartas disponibles de cada persona (clave = nombre normalizado) -> [keys de la colección]
+let meta = {nombre: '', limite: 2, elegida: null, disp: {}};
+const COL = [];                     // keys de coleccion_30c en orden
 const BULK = 1;                     // por debajo de 1 € cuenta como bulk
 
 const pctTxt = p => Math.abs(p).toLocaleString('es-ES',{maximumFractionDigits: Math.abs(p) < 10 ? 1 : 0}) + ' %';
@@ -199,6 +235,7 @@ function restore(){
       if (Number.isFinite(s.meta.limite)) meta.limite = s.meta.limite;
       const e = s.meta.elegida;
       meta.elegida = e && [e.chosen, ...e.alts].flat().every(k => ITEMS[k]) ? e : null;
+      meta.disp = Object.fromEntries(Object.entries(s.meta.disp || {}).map(([p, ks]) => [p, ks.filter(k => ITEMS[k])]));
     }
   } catch(e){}
   document.getElementById('nombre').value = meta.nombre;
@@ -227,11 +264,20 @@ async function load(){
   (data.deseadas || []).forEach(d => {
     const key = 'd' + (d.url || d.num);
     ITEMS[key] = {key, side:'recibo', name:d.nombre || 'Pikachu', numLabel:d.numLabel || d.num, set:d.set || '', url:d.url, img:d.img,
-      floor:d.suelo ?? null, date:d.fecha || '', avail:Infinity, wanted:!!d.buscada, have:inStock.has(d.url), tag:d.tag};
+      floor:d.suelo ?? null, date:d.fecha || '', avail:Infinity, wanted:!!d.buscada, des:true, have:inStock.has(d.url), tag:d.tag, num:d.num};
+  });
+  // Colección completa de 30th Celebration: posibles cartas de la otra persona (misma clave que la deseada si coincide la url).
+  (data.coleccion_30c || []).forEach(c => {
+    const key = 'd' + c.url;
+    if (ITEMS[key]) { ITEMS[key].col = true; ITEMS[key].num = c.num; }
+    else ITEMS[key] = {key, side:'recibo', name:c.nombre, numLabel:c.numLabel, set:'30th Celebration', url:c.url, img:c.img,
+      floor:c.suelo ?? null, date:c.fecha || '', avail:Infinity, wanted:false, des:false, col:true, have:inStock.has(c.url), tag:c.tag, num:c.num};
+    COL.push(key);
   });
   restore();
-  const nd = Object.values(ITEMS).filter(i => i.side === 'recibo').length, ns = Object.values(ITEMS).filter(i => i.side === 'doy').length;
-  st.innerHTML = `<b>${nd}</b> cartas deseadas y <b>${ns}</b> cartas en stock. Valores según el suelo de Cardmarket en español NM${dates(Object.values(ITEMS)) ? ' (consultado el <b>' + esc(dates(Object.values(ITEMS))) + '</b>)' : ''}.`;
+  const mine = Object.values(ITEMS).filter(i => i.des || i.side === 'doy');
+  const nd = mine.filter(i => i.des).length, ns = mine.filter(i => i.side === 'doy').length;
+  st.innerHTML = `<b>${nd}</b> cartas deseadas, <b>${ns}</b> cartas en stock y <b>${COL.length}</b> cartas de 30th Celebration para marcar las disponibles. Valores según el suelo de Cardmarket en español NM${dates(mine) ? ' (consultado el <b>' + esc(dates(mine)) + '</b>)' : ''}.`;
   ['scale','cols'].forEach(id => document.getElementById(id).hidden = false);
   document.getElementById('foot').textContent = 'Si una carta de tu stock no tiene suelo, se usa tu precio de venta. Las deseadas sin suelo valen 0 hasta que les pongas valor a mano. Tu selección se guarda en este navegador.';
   render();
@@ -244,7 +290,7 @@ function dates(list){
 }
 
 /* ---------- Pintar ---------- */
-function render(){ renderScale(); SIDES.forEach(renderSel); SIDES.forEach(renderPick); save(); }
+function render(){ renderScale(); SIDES.forEach(renderSel); SIDES.forEach(renderPick); renderDisp(); save(); }
 
 function renderScale(){
   const R = total('recibo'), D = total('doy'), diff = R - D;
@@ -287,7 +333,7 @@ function renderSel(side){
 function renderPick(side){
   const q = norm(document.getElementById('q-' + side).value.trim());
   let list = Object.values(ITEMS).filter(it => it.side === side);
-  if (side === 'recibo') list = list.filter(it => !selQty('recibo', it.key));
+  if (side === 'recibo'){ const disp = dispSet(); list = list.filter(it => !selQty('recibo', it.key) && (it.des || disp.has(it.key))); }
   if (q) list = list.filter(it => norm(`${it.name} ${it.numLabel} ${it.set}`).includes(q));
   list.sort((a, b) => (b.wanted|0) - (a.wanted|0) || (a.have|0) - (b.have|0) || a.name.localeCompare(b.name, 'es') || String(a.numLabel).localeCompare(String(b.numLabel), 'es', {numeric:true}));
   document.getElementById('pick-' + side).innerHTML = list.length ? list.map(it => {
@@ -334,8 +380,48 @@ SIDES.forEach(side => {
 });
 
 document.getElementById('clear').addEventListener('click', () => { sel = {recibo: [], doy: []}; vals = {}; meta.elegida = null; hideSugg(); render(); });
-document.getElementById('nombre').addEventListener('input', e => { meta.nombre = e.target.value; renderScale(); save(); });
+document.getElementById('nombre').addEventListener('input', e => { meta.nombre = e.target.value; hideSugg(); render(); });
 document.getElementById('lim').addEventListener('input', e => { const v = num(e.target.value); meta.limite = v != null && v > 0 ? v : 0; hideSugg(); save(); });
+
+/* ---------- Cartas disponibles de la otra persona (por persona) ---------- */
+const pkey = () => norm(who());
+const dispSet = () => new Set(meta.disp[pkey()] || []);
+function setDisp(set){ const k = pkey(); if (set.size) meta.disp[k] = COL.filter(x => set.has(x)); else delete meta.disp[k]; }
+const numKey = s => String(s).toUpperCase().replace(/[^A-Z0-9]/g, '').replace(/^0+(?=\d)/, '');
+
+function renderDisp(){
+  const disp = dispSet(), list = COL.filter(k => disp.has(k));
+  const tot = list.reduce((a, k) => a + val(k), 0);
+  document.getElementById('disp-title').textContent = who() ? `Cartas disponibles de ${who()}` : 'Cartas disponibles de la otra persona';
+  document.getElementById('disp-count').textContent = `${list.length} carta${list.length === 1 ? '' : 's'} disponible${list.length === 1 ? '' : 's'} · ${eur(tot)}`;
+  const q = norm(document.getElementById('disp-q').value.trim()), only = document.getElementById('disp-only').checked;
+  const qn = numKey(q);
+  const shown = COL.filter(k => (!only || disp.has(k)) && (!q || norm(ITEMS[k].name).includes(q) || (qn && numKey(ITEMS[k].num).startsWith(qn))));
+  document.getElementById('disp-grid').innerHTML = shown.length ? shown.map(k => { const it = ITEMS[k];
+    return `<button class="dc ${disp.has(k) ? 'on' : ''}" type="button" data-k="${esc(k)}" title="${esc(it.name)} ${esc(it.numLabel)}${it.have ? ' · ya la tengo' : ''}" aria-pressed="${disp.has(k)}">
+      <img src="${esc(it.img)}" alt="" loading="lazy"><b>${esc(it.num)}</b><small>${it.floor == null ? 'sin suelo' : eur(it.floor)}</small></button>`; }).join('')
+    : '<p class="note">Nada coincide con la búsqueda.</p>';
+}
+document.getElementById('disp-grid').addEventListener('click', e => {
+  const b = e.target.closest('[data-k]'); if (!b) return;
+  const disp = dispSet(); disp.has(b.dataset.k) ? disp.delete(b.dataset.k) : disp.add(b.dataset.k);
+  setDisp(disp); hideSugg(); render();
+});
+['disp-q', 'disp-only'].forEach(id => document.getElementById(id).addEventListener('input', renderDisp));
+document.getElementById('disp-clear').addEventListener('click', () => { setDisp(new Set()); document.getElementById('disp-msg').textContent = ''; hideSugg(); render(); });
+// «Pegar números»: acepta «012, 047, 88 131», con o sin ceros, y códigos Classic como «BS 58».
+function markPasted(){
+  const inp = document.getElementById('disp-paste'), text = inp.value.trim(); if (!text) return;
+  const byNum = new Map(COL.map(k => [numKey(ITEMS[k].num), k]));
+  const tokens = text.split(/[,;\n\r\t]+/).flatMap(t => /^[\d\s]+$/.test(t.trim()) ? t.trim().split(/\s+/) : [t.trim()]).filter(Boolean);
+  const disp = dispSet(), found = [], missing = [];
+  tokens.forEach(t => { const k = byNum.get(numKey(t)); if (k){ disp.add(k); found.push(t); } else missing.push(t); });
+  setDisp(disp); hideSugg(); render();
+  document.getElementById('disp-msg').textContent = `Marcadas ${found.length}` + (missing.length ? ` · no encontradas: ${missing.join(', ')}` : '') + '.';
+  if (!missing.length) inp.value = '';
+}
+document.getElementById('disp-mark').addEventListener('click', markPasted);
+document.getElementById('disp-paste').addEventListener('keydown', e => { if (e.key === 'Enter') markPasted(); });
 
 /* ---------- Cuadrar ---------- */
 function hideSugg(){ document.getElementById('sugg').hidden = true; }
@@ -389,20 +475,25 @@ function suggest(){
   const lim = side === 'doy' && meta.limite > 0 ? meta.limite : Infinity;
   // Nunca sugiere una carta que ya esté en Recibo o en Doy (se compara por url: la misma carta tiene clave distinta en cada lado).
   const taken = new Set([...sel.recibo, ...sel.doy].flatMap(s => [s.key, ITEMS[s.key].url]).filter(Boolean));
-  const pool = Object.values(ITEMS).filter(it => it.side === side && left(it.key) > 0 && !taken.has(it.key) && !(it.url && taken.has(it.url)) && val(it.key) <= lim + 1e-9)
-                     .map(it => ({key: it.key, v: val(it.key), worse: side === 'recibo' ? it.have : val(it.key) >= BULK}));
-  return {R, D, gap, side, lim, combos: bestCombos(pool, gap)};
+  // Si la otra persona ha marcado cartas disponibles, sus opciones salen solo de esas (en empate: primero las que me faltan y los Pikachu).
+  const disp = dispSet(), useDisp = side === 'recibo' && disp.size > 0;
+  const allowed = it => side !== 'recibo' || (useDisp ? disp.has(it.key) : it.des);
+  const pool = Object.values(ITEMS).filter(it => it.side === side && allowed(it) && left(it.key) > 0 && !taken.has(it.key) && !(it.url && taken.has(it.url)) && val(it.key) <= lim + 1e-9)
+                     .map(it => ({key: it.key, v: val(it.key),
+                       worse: side === 'doy' ? val(it.key) >= BULK : useDisp ? (it.have ? 1 : 0) + (/^Pikachu/.test(it.name) ? 0 : 1) : it.have}));
+  return {R, D, gap, side, lim, useDisp, combos: bestCombos(pool, gap)};
 }
 
 document.getElementById('cuadrar').addEventListener('click', () => {
-  const {R, D, gap, side, lim, combos} = suggest(), box = document.getElementById('sugg');
+  const {R, D, gap, side, lim, useDisp, combos} = suggest(), box = document.getElementById('sugg');
   box.hidden = false;
   if (!side){ box.innerHTML = '<h3>Ya está equilibrado.</h3>'; return; }
   const title = side === 'recibo'
-    ? `Recibes ${eur(gap)} menos: cartas de tus deseadas que ${who() || 'la otra persona'} podría añadir`
+    ? (useDisp ? `Recibes ${eur(gap)} menos: cartas disponibles de ${who() || 'la otra persona'} que podría añadir`
+               : `Recibes ${eur(gap)} menos: cartas de tus deseadas que ${who() || 'la otra persona'} podría añadir`)
     : `Das ${eur(gap)} menos: cartas de tu stock que podrías añadir${lim < Infinity ? ` (de hasta ${eur(lim)})` : ''}`;
   if (!combos.length){ box.innerHTML = `<h3>${title}</h3><p class="note">No hay cartas con valor que encajen${lim < Infinity ? '. Prueba a subir el límite de «Cuadrar usando mis cartas de hasta…»' : ''}.</p>`; return; }
-  box.innerHTML = `<h3>${title}</h3><p class="note">Las 3 combinaciones que más se acercan a 0${side === 'recibo' ? ' (si empatan, primero las que te faltan)' : ' (si empatan, primero bulk)'}. Pulsa «Añadir» para sumarla a la columna «${esc(colName(side))}».</p>
+  box.innerHTML = `<h3>${title}</h3><p class="note">Las 3 combinaciones que más se acercan a 0${side === 'recibo' ? ' (si empatan, primero las que te faltan' + (useDisp ? ' y los Pikachu' : '') + ')' : ' (si empatan, primero bulk)'}. Pulsa «Añadir» para sumarla a la columna «${esc(colName(side))}».</p>
     <div class="combos">${combos.map((c, i) => {
       const after = side === 'recibo' ? (R + c.sum) - D : R - (D + c.sum);
       return `<div class="combo">
