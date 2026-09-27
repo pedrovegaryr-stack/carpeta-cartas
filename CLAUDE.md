@@ -18,6 +18,7 @@ Habla con Jose en español, con pasos claros. Antes de cualquier acción irrever
 | `cartas.json` | **Catálogo**: datos fijos de cada carta + lista de cartas buscadas. | Claude Code al añadir cartas |
 | `stock.csv` | **Precio y cantidad** de cada carta (manda sobre `cartas.json`). Cantidad 0 = «Agotada». | Jose o Claude Code |
 | `suelo.csv` | Precio más barato de otros vendedores en Cardmarket (español, NM). | Claude Code |
+| `suelo_pendiente.csv` | Suelos mirados al listar cartas que aún no tienen id (`url;minimo;ofertas;fecha`). Pasan a `suelo.csv` en el Flujo B. | Claude Code |
 | `config.json` | Modo de precios (normal / rebajas). **No lo sobrescribas**: lo gestiona el botón de `informe.html` vía `api/modo.js`. | Botón del informe |
 | `img/<id>.webp` | Foto de cada carta. `img/w<num>.webp` = fotos de cartas buscadas. | Claude Code |
 | `api/modo.js` | Función de Vercel que edita `config.json` en GitHub (variables `GITHUB_TOKEN`, `GITHUB_REPO`). | Nunca |
@@ -94,10 +95,22 @@ Convertir a WebP de 380 px de ancho, calidad 78 (Pillow) y guardar como `img/<id
 3. Lee **todas las páginas del listado masivo** de esa colección (texto de la tabla). Cada fila tiene el nombre exacto con código y número,
    p. ej. `Exeggutor de Alola (30C 002)`, y a veces el nombre en inglés debajo. Apunta en qué página está cada número.
    Las ilustraciones especiales y promos tienen el mismo nombre con otro número: **el número es lo único que las distingue**.
-4. Enseña a Jose una tabla de verificación: número → carta → cantidad → precio propuesto. Espera su OK.
-5. Precios: descarga la guía de precios de `https://www.cardmarket.com/es/Pokemon/Data/Price-Guide` (y el catálogo en `Data/Product-List`)
-   o lee la tendencia en la página de cada producto. Aplica la regla de bulk; las cartas buenas, propón y que decida Jose.
-6. Genera **un CSV por página** del listado masivo (solo con las cartas de esa página), separador `,`:
+4. **Modo de precio**: pregúntalo **siempre** al empezar una colección nueva (no lo des por supuesto):
+   - **«regla»**: tendencia × 1,5 redondeado hacia arriba a múltiplos de 0,05 €, mínimo 0,25 € (la regla de bulk de siempre).
+   - **«suelo»**: para cada carta abre su `url` + `?language=4&minCondition=2`, coge la oferta más barata de **otros** vendedores
+     (ignorando las de `USUARIO_CM`) y pon ese precio **+ el % que diga Jose** (0 % si no dice nada), redondeado hacia arriba al céntimo,
+     con el **mínimo que diga Jose** (0,25 € por defecto). Si no hay ofertas en español, usa la «regla» para esa carta y avísale.
+     **15–20 s entre cartas.** Cómo leer el suelo: ver «Cómo leer el suelo de una carta» en el Flujo C.
+   - **«manual»**: propón precio para cada carta y Jose decide carta a carta.
+
+   Se pueden mezclar, p. ej. «suelo +10 %, mínimo 0,25, pero las de más de 5 € enséñamelas antes»: aplica el modo y separa las excepciones
+   para que Jose las decida. La tendencia sale de la tabla del listado masivo (campo oculto `trendPrice` de cada fila) o de la página del producto.
+5. Enseña a Jose una tabla de verificación: número → carta → cantidad → **tendencia** → **suelo en español** (y nº de ofertas, si lo has mirado)
+   → **precio propuesto**. Espera su OK.
+   Los suelos que mires guárdalos en `suelo_pendiente.csv` (`url;minimo;ofertas;fecha`, url sin parámetros): las cartas aún no tienen id,
+   así que pasan a `suelo.csv` en el Flujo B cuando se les asigna. Así el informe queda actualizado sin volver a consultarlos.
+6. Genera **un CSV por página** del listado masivo (solo con las cartas de esa página), separador `,`, y guárdalo en **Descargas**
+   (`C:\Users\Jose\Downloads\<coleccion>-pagina<N>.csv`):
    `Name,Quantity,Price,Condition,Language,Comment` con `Name` = nombre **exacto** de la tabla incluido el código
    (`Lapras (30C 017)`), `Condition` = `NM`, `Language` = `Spanish`.
    Motivo: la extensión «Cardmarket Bulk Import» empareja por nombre **solo en la página abierta**; si la carta no está en esa página
@@ -109,10 +122,11 @@ Convertir a WebP de 380 px de ancho, calidad 78 (Pillow) y guardar como `img/<id
 ## Flujo B — Sincronizar la web con Cardmarket («sincroniza»)
 
 1. Con la sesión de Jose iniciada en el Chrome del puerto 9222, lee **todas las páginas** de *Vender → Mis ofertas*
-   (la página de stock propio de Cardmarket; compruébala navegando desde el menú Vender la primera vez y apunta aquí la URL: `URL_MIS_OFERTAS = ____`): nombre, url del producto, precio, cantidad y comentario de cada oferta.
+   (la página de stock propio de Cardmarket; compruébala navegando desde el menú Vender la primera vez y apunta aquí la URL: `URL_MIS_OFERTAS = https://www.cardmarket.com/es/Pokemon/Stock/Offers/Singles` (20 ofertas por página, `?site=N`)): nombre, url del producto, precio, cantidad y comentario de cada oferta.
    Si una carta tiene varias ofertas (mismo url), suma cantidades y usa el precio más bajo.
 2. Cruza por `url` (sin parámetros) con `cartas.json`:
    - **Nueva** → añade entrada a `cartas.json` (ver formato), descarga su foto a `img/<id>.webp`, añádela a `stock.csv`.
+     Si su url está en `suelo_pendiente.csv`, pasa esa fila a `suelo.csv` con el id nuevo y quítala de `suelo_pendiente.csv`.
    - **Existente** → actualiza precio y cantidad en `stock.csv` (y en `cartas.json`).
    - **Está en la web pero ya no en Cardmarket** → cantidad **0** en `stock.csv` (sale como «Agotada»). No la borres.
 3. Si ha cambiado el stock, ofrece regenerar el suelo (Flujo C).
@@ -123,8 +137,16 @@ Convertir a WebP de 380 px de ancho, calidad 78 (Pillow) y guardar como `img/<id
 
 Para cada carta con cantidad > 0 en `stock.csv`: abre su `url` + `?language=4&minCondition=2`
 (los «Código Live» sin filtro de idioma), coge la oferta más barata **ignorando las del propio Jose**
-(pregúntale su usuario de Cardmarket la primera vez y apúntalo aquí: `USUARIO_CM = ____`), cuenta las ofertas de otros vendedores
+(su nombre de vendedor en Cardmarket: `USUARIO_CM = BePokemon`)
 y escribe `suelo.csv`. 15–20 s entre cartas. Comprueba 2–3 a mano antes de hacerlas todas. Después commit + push.
+
+**Cómo leer el suelo de una carta** (también para el modo «suelo» del Flujo A):
+- **No pulses «Mostrar más resultados».** Las ofertas vienen ordenadas de más barata a más cara: el suelo es la **primera oferta
+  que no sea de Jose** en la primera carga de la página.
+- Solo si **todas** las ofertas de la primera carga son de Jose, pulsa «Mostrar más» **una vez**.
+- Número de ofertas (`ofertas`): cuenta las **filas de otros vendedores en la primera carga** (ya filtrada en español NM).
+  Si hay botón «Mostrar más», escribe ese número seguido de `+` (p. ej. `25+`). Es solo orientativo.
+  **No uses «Artículos disponibles»** de la ficha: cuenta todos los idiomas y estados.
 
 ## Flujo D — Cartas buscadas para intercambio
 
