@@ -83,6 +83,10 @@ body{
 .chip{font:600 13px var(--body);color:var(--muted);background:transparent;border:1px solid var(--pocket-edge);border-radius:999px;padding:7px 12px;cursor:pointer}
 .chip:hover{color:var(--ink);border-color:rgba(214,236,240,.25)}
 .chip[aria-pressed="true"]{color:#1a1406;background:var(--gold);border-color:var(--gold)}
+.chip .lang-flag{display:inline-block;vertical-align:-1px;width:15px;height:10px;border-radius:2px;margin-right:5px;box-shadow:0 0 0 .5px rgba(0,0,0,.3)}
+.chips.langs{padding-left:10px;border-left:1px solid var(--pocket-edge)}
+.tag.lang-tag{color:#1a1406;background:var(--gold);border-color:var(--gold)}
+@media (max-width:640px){.chips{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;max-width:100%;padding-bottom:2px}.chips::-webkit-scrollbar{display:none}.chip{flex:none}.chips.langs{border-left:0;padding-left:0}}
 .sort{background:var(--pocket);color:var(--ink);border:1px solid var(--pocket-edge);border-radius:10px;padding:9px 10px;font:500 13px var(--body)}
 :focus-visible{outline:2px solid var(--gold);outline-offset:2px}
 
@@ -246,6 +250,7 @@ footer{margin-top:56px;color:var(--faint);font-size:12.5px;display:flex;gap:16px
       <input id="q" type="search" placeholder="Buscar carta o número (ej. Pikachu, 068)" autocomplete="off">
     </label>
     <div class="chips" id="chips" role="group" aria-label="Filtrar"></div>
+    <div class="chips langs" id="langs" role="group" aria-label="Idioma"></div>
     <select class="sort" id="sort" aria-label="Ordenar">
       <option value="price-desc">Precio: de mayor a menor</option>
       <option value="price-asc">Precio: de menor a mayor</option>
@@ -274,6 +279,7 @@ footer{margin-top:56px;color:var(--faint);font-size:12.5px;display:flex;gap:16px
 </div>
 <div class="toast" id="toast" hidden></div>
 
+<script src="idiomas.js"></script>
 <script>
 const CARDS = [];
 const IMGS = {};
@@ -310,7 +316,8 @@ const FILTERS = [
   {id:'code', label:'Códigos online', fn:c=>c.set==='Códigos online'}
 ];
 
-let state = {q:'', filter:'all', sort:'price-desc'};
+let state = {q:'', filter:'all', lang:'all', sort:'price-desc'};
+const lang = c => IDIOMAS.code(c.idioma);
 const picked = new Map();
 
 function cardHTML(c){
@@ -319,10 +326,11 @@ function cardHTML(c){
   if (c.tag) tags.push(`<span class="tag ${c.tag==='ex'?'':'hi'}">${esc(c.tag)}</span>`);
   tags.push(`<span class="tag">NM</span>`);
   if (c.toploader) tags.push(`<span class="tag">Toploader</span>`);
+  if (lang(c) !== 'es') tags.unshift(`<span class="tag lang-tag">${IDIOMAS.name(c.idioma)}</span>`);
   const on = picked.has(c.id);
   const out = c.qty <= 0;
   return `<article class="pocket ${isFeatured(c)?'holo':''} ${out?'agotada':''}">${out?'<span class="stamp">Agotada</span>':''}
-    ${IMGS[c.id] ? `<div class="photo"><img src="${IMGS[c.id]}" alt="${esc(c.name)} ${esc(c.numLabel)}" loading="lazy" decoding="async"></div>` : `<div class="card" style="--c:var(--t-${c.type})" role="img" aria-label="${esc(c.name)}, tipo ${TYPE_LABEL[c.type]}">
+    ${IMGS[c.id] ? `<div class="photo">${IDIOMAS.badgeHTML(c.idioma)}<img src="${IMGS[c.id]}" alt="${esc(c.name)} ${esc(c.numLabel)}" loading="lazy" decoding="async"></div>` : `<div class="card" style="--c:var(--t-${c.type})" role="img" aria-label="${esc(c.name)}, tipo ${TYPE_LABEL[c.type]}">${IDIOMAS.badgeHTML(c.idioma)}
       <div class="card-in">
         <div class="card-name"><span>${esc(c.name)}</span></div>
         <div class="card-art"><svg viewBox="0 0 24 24" aria-hidden="true">${ICONS[c.type]}</svg></div>
@@ -360,12 +368,15 @@ function renderFeatured(){
 function renderChips(){
   document.getElementById('chips').innerHTML = FILTERS.map(f =>
     `<button class="chip" type="button" data-f="${f.id}" aria-pressed="${state.filter===f.id}">${f.label}</button>`).join('');
+  const langs = [...new Set(live().map(lang))].sort((a,b) => (a!=='es')-(b!=='es') || a.localeCompare(b));
+  document.getElementById('langs').innerHTML = [`<button class="chip" type="button" data-lang="all" aria-pressed="${state.lang==='all'}">Todos los idiomas</button>`]
+    .concat(langs.map(l => `<button class="chip" type="button" data-lang="${l}" aria-pressed="${state.lang===l}" title="${IDIOMAS.name(l)}">${IDIOMAS.flagSVG(l, 15, 10)}${IDIOMAS.name(l)}</button>`)).join('');
 }
 
 function renderGrid(){
   const f = FILTERS.find(x=>x.id===state.filter).fn;
   const q = state.q.trim().toLowerCase();
-  let list = CARDS.filter(f).filter(c => !q || (c.name+' '+c.numLabel+' '+c.set).toLowerCase().includes(q));
+  let list = CARDS.filter(f).filter(c => state.lang === 'all' || lang(c) === state.lang).filter(c => !q || (c.name+' '+c.numLabel+' '+c.set).toLowerCase().includes(q));
   const s = state.sort;
   list.sort((a,b)=> ((b.qty>0)-(a.qty>0)) || (s==='price-desc' ? b.price-a.price || a.num-b.num
                   : s==='price-asc' ? a.price-b.price || a.num-b.num
@@ -391,7 +402,7 @@ function renderBar(){
 
 function orderText(){
   const items = [...picked.values()].sort((a,b)=>a.num-b.num);
-  const lines = items.map(c => `• ${c.name}${c.numLabel && c.numLabel!=='Código' ? ' ('+c.numLabel+')' : ''} · ${eur(c.price)}`);
+  const lines = items.map(c => `• ${c.name}${c.numLabel && c.numLabel!=='Código' ? ' ('+c.numLabel+')' : ''}${lang(c)!=='es' ? ' · '+IDIOMAS.name(c.idioma) : ''} · ${eur(c.price)}`);
   const total = items.reduce((a,c)=>a+c.price,0);
   let msg = 'Hola!';
   if (items.length) msg += `\nMe interesan estas cartas de tu carpeta:\n${lines.join('\n')}\nTotal: ${eur(total)}`;
@@ -429,6 +440,7 @@ document.addEventListener('click', e => {
   const tr = e.target.closest('[data-trade]');
   if (tr){ const n = tr.dataset.trade; trades.has(n) ? trades.delete(n) : trades.add(n); renderWanted(); renderBar(); return; }
   const chip = e.target.closest('.chip');
+  if (chip && chip.dataset.lang){ state.lang = chip.dataset.lang; renderChips(); renderGrid(); return; }
   if (chip){ state.filter = chip.dataset.f; renderChips(); renderGrid(); }
 });
 document.getElementById('q').addEventListener('input', e => { state.q = e.target.value; renderGrid(); });
@@ -530,39 +542,40 @@ document.getElementById('export-pdf').addEventListener('click', ev => busy(ev.cu
       x += w[i];
     });
   }
-  function cardCell(c, x){
+  async function cardCell(c, x){
     const cx = x + CW/2, ix = cx - IW/2, p = pic.get(c);
     if (p) doc.addImage(p, 'JPEG', ix, y, IW, IH);
     else { doc.setFillColor(...soft); doc.rect(ix, y, IW, IH, 'F'); doc.setFont('helvetica','bold'); doc.setFontSize(7); doc.setTextColor(...muted);
       doc.text(doc.splitTextToSize(pdfText(c.name), IW-3).slice(0,3), cx, y+IH/2-2, {align:'center'}); }
     doc.setDrawColor(...line); doc.rect(ix, y, IW, IH);
-    if (c.orig && saleTag){ doc.setFillColor(...sale); doc.roundedRect(ix+1, y+1, 15, 4.6, 1, 1, 'F'); doc.setFont('helvetica','bold'); doc.setFontSize(6.5); doc.setTextColor(255,255,255); doc.text('Rebajada', ix+8.5, y+4.2, {align:'center'}); }
+    await IDIOMAS.pdfBadge(doc, c.idioma, ix, y, IW);
+    if (c.orig && saleTag){ doc.setFillColor(...sale); doc.roundedRect(ix+1, y+IH-5.6, 15, 4.6, 1, 1, 'F'); doc.setFont('helvetica','bold'); doc.setFontSize(6.5); doc.setTextColor(255,255,255); doc.text('Rebajada', ix+8.5, y+IH-2.4, {align:'center'}); }
     doc.setFont('helvetica','bold'); doc.setFontSize(8.8); doc.setTextColor(...ink);
     doc.text(fit(c.name, CW-1), cx, y+IH+4, {align:'center'});
     doc.setFont('helvetica','normal'); doc.setFontSize(7.2); doc.setTextColor(...muted);
-    doc.text(fit(c.numLabel==='Código' ? c.set : `${c.numLabel} · ${c.set}`, CW-1), cx, y+IH+7.8, {align:'center'});
+    doc.text(fit((c.numLabel==='Código' ? c.set : `${c.numLabel} · ${c.set}`) + (lang(c)!=='es' ? ` · ${IDIOMAS.name(c.idioma)}` : ''), CW-1), cx, y+IH+7.8, {align:'center'});
     const q = {t:`  x${c.qty}`, font:'normal', size:8.5, color:muted};
     runs(c.orig
       ? [{t:eur(c.orig), font:'normal', size:7.5, color:muted, strike:true}, {t:' '+eur(c.price), font:'bold', size:10, color:sale}, q]
       : [{t:eur(c.price), font:'bold', size:10, color:ink}, q], cx, y+IH+12.2);
   }
   const newPage = () => { doc.addPage(); y = M; };
-  sections.forEach((s, si) => {
+  for (const [si, s] of sections.entries()){
     const rows = []; for (let i = 0; i < s.list.length; i += PER) rows.push(s.list.slice(i, i+PER));
     const lastSection = si === sections.length - 1;
     // No empezar una sección al final de la página con una sola fila (si tiene más de una)
     const first = TITLEH + ROWH * Math.min(2, rows.length) + (lastSection && rows.length <= 2 ? TOTALH : 0);
     if (y + first > BOTTOM) newPage();
     sectionTitle(s, false);
-    rows.forEach((row, ri) => {
+    for (const [ri, row] of rows.entries()){
       // La última fila se lleva el total con ella si no cabe todo
       const need = ROWH + (lastSection && ri === rows.length-1 ? TOTALH : 0);
       if (y + need > BOTTOM){ newPage(); sectionTitle(s, true); }
-      row.forEach((c, i) => cardCell(c, M + i*(CW+GX)));
+      for (const [i, c] of row.entries()) await cardCell(c, M + i*(CW+GX));
       y += ROWH;
-    });
+    }
     y += 2;
-  });
+  }
   // Total
   doc.setDrawColor(...ink); doc.setLineWidth(0.4); doc.line(M, y+1, W-M, y+1); doc.setLineWidth(0.2);
   doc.setFont('helvetica','bold'); doc.setFontSize(12); doc.setTextColor(...ink);
@@ -580,27 +593,28 @@ document.getElementById('export-xlsx').addEventListener('click', ev => busy(ev.c
   const list = byPrice(); const pics = await thumbs(list);
   const wb = new ExcelJS.Workbook(); wb.creator = 'Carpeta de venta';
   const ws = wb.addWorksheet('Stock', {views:[{state:'frozen', ySplit:3}]});
-  ws.columns = [{width:13},{width:30},{width:22},{width:12},{width:10},{width:13},{width:13},{width:16}];
-  ws.mergeCells('A1:H1'); ws.getCell('A1').value = `Carpeta de venta · Pokémon TCG — stock a ${today()}`;
+  ws.columns = [{width:13},{width:30},{width:22},{width:12},{width:11},{width:10},{width:13},{width:13},{width:16}];
+  ws.mergeCells('A1:I1'); ws.getCell('A1').value = `Carpeta de venta · Pokémon TCG — stock a ${today()}`;
   ws.getCell('A1').font = {bold:true, size:16, color:{argb:'FF10202A'}}; ws.getRow(1).height = 26;
   const head = ws.getRow(3);
-  head.values = ['Foto','Carta','Colección','Número','Cantidad','Precio (€)','Subtotal (€)','Cardmarket'];
+  head.values = ['Foto','Carta','Colección','Número','Idioma','Cantidad','Precio (€)','Subtotal (€)','Cardmarket'];
   head.font = {bold:true, color:{argb:'FFFFFFFF'}}; head.height = 20;
   head.eachCell(c => { c.fill = {type:'pattern', pattern:'solid', fgColor:{argb:'FF10202A'}}; c.alignment = {vertical:'middle'}; });
   list.forEach((c,i) => {
     const r = 4 + i; const row = ws.getRow(r);
-    row.values = ['', c.name, c.set, c.numLabel, c.qty, c.price, {formula:`E${r}*F${r}`, result:c.price*c.qty}, {text:'Ver carta', hyperlink:c.url}];
+    row.values = ['', c.name, c.set, c.numLabel, IDIOMAS.name(c.idioma), c.qty, c.price, {formula:`F${r}*G${r}`, result:c.price*c.qty}, {text:'Ver carta', hyperlink:c.url}];
     row.height = 92;
     row.eachCell({includeEmpty:true}, cell => { cell.alignment = {vertical:'middle', wrapText:true}; });
     row.getCell(2).font = {bold:true};
-    row.getCell(6).numFmt = row.getCell(7).numFmt = '#,##0.00 €';
-    row.getCell(8).font = {color:{argb:'FF1F5FBF'}, underline:true};
+    row.getCell(7).numFmt = row.getCell(8).numFmt = '#,##0.00 €';
+    row.getCell(9).font = {color:{argb:'FF1F5FBF'}, underline:true};
+    if (lang(c) !== 'es') row.getCell(5).font = {bold:true, color:{argb:'FFB07C14'}};
     if (pics[i]){ const id = wb.addImage({base64: pics[i], extension:'jpeg'}); ws.addImage(id, {tl:{col:0.12, row:r-1+0.06}, ext:{width:84, height:118}}); }
   });
   const tr = 4 + list.length, last = tr - 1;
   const trow = ws.getRow(tr);
-  trow.values = ['', 'TOTAL', '', '', {formula:`SUM(E4:E${last})`}, '', {formula:`SUM(G4:G${last})`}, ''];
-  trow.font = {bold:true, size:12}; trow.height = 24; trow.getCell(7).numFmt = '#,##0.00 €';
+  trow.values = ['', 'TOTAL', '', '', '', {formula:`SUM(F4:F${last})`}, '', {formula:`SUM(H4:H${last})`}, ''];
+  trow.font = {bold:true, size:12}; trow.height = 24; trow.getCell(8).numFmt = '#,##0.00 €';
   trow.eachCell({includeEmpty:true}, cell => { cell.fill = {type:'pattern', pattern:'solid', fgColor:{argb:'FFF6E7C4'}}; cell.alignment = {vertical:'middle'}; });
   const buf = await wb.xlsx.writeBuffer();
   saveBlob(new Blob([buf], {type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}), `stock-cartas_${stamp()}.xlsx`); toast('Excel descargado');

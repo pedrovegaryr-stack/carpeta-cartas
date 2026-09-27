@@ -18,17 +18,18 @@ Habla con Jose en español, con pasos claros. Antes de cualquier acción irrever
 | `intercambio.html` | Página privada (no enlazada): herramienta de intercambios (Recibo/Doy, balanza, «Cuadrar», PDF de propuesta). Lee `cartas.json`, `stock.csv` y `suelo.csv`. | Casi nunca |
 | `cartas.json` | **Catálogo**: datos fijos de cada carta + lista de cartas **deseadas** (buscadas + candidatas para cambios). | Claude Code al añadir cartas |
 | `stock.csv` | **Precio y cantidad** de cada carta (manda sobre `cartas.json`). Cantidad 0 = «Agotada». | Jose o Claude Code |
-| `suelo.csv` | Precio más barato de otros vendedores en Cardmarket (español, NM). | Claude Code |
+| `suelo.csv` | Precio más barato de otros vendedores en Cardmarket (idioma de la carta, NM). | Claude Code |
 | `suelo_pendiente.csv` | Suelos mirados al listar cartas que aún no tienen id (`url;minimo;ofertas;fecha`). Pasan a `suelo.csv` en el Flujo B. | Claude Code |
 | `config.json` | Modo de precios (normal / rebajas). **No lo sobrescribas**: lo gestiona el botón de `informe.html` vía `api/modo.js`. | Botón del informe |
 | `img/<id>.webp` | Foto de cada carta. `img/w<num>.webp` = fotos de cartas deseadas. `img/30c/<código>.webp` = resto de la colección 30th Celebration. | Claude Code |
+| `idiomas.js` | Banderas en SVG, nombres de idioma y la etiqueta «bandera + código» (web y, como imagen, en los PDF). Lo cargan `index.html`, `informe.html` e `intercambio.html`. | Casi nunca |
 | `api/modo.js` | Función de Vercel que edita `config.json` en GitHub (variables `GITHUB_TOKEN`, `GITHUB_REPO`). | Nunca |
 
 ### `cartas.json`
 ```json
 {
   "cartas": [
-    {"id": 1, "name": "Azumarill", "num": 68, "numLabel": "068/128", "set": "30th Celebration",
+    {"id": 1, "name": "Azumarill", "num": 68, "numLabel": "068/128", "set": "30th Celebration", "idioma": "es",
      "url": "https://www.cardmarket.com/es/Pokemon/Products/Singles/30th-Celebration/Azumarill-30C068",
      "price": 0.25, "qty": 2, "type": "psychic", "tag": "", "toploader": false, "img": "img/1.webp"}
   ],
@@ -49,7 +50,10 @@ Habla con Jose en español, con pasos claros. Antes de cualquier acción irrever
 - `name`: nombre en español tal como sale en Cardmarket, sin el código entre paréntesis (`Exeggutor de Alola`, `Cambio`).
 - `num`: número para ordenar (999 si no tiene). `numLabel`: lo que se muestra (`068/128`, `VIV 50`, `182`, `Código`).
 - `set`: nombre de colección para mostrar. Filtros de la web: `"30th Celebration"`, `"Códigos online"`, cualquier otro = «Otras colecciones».
-- `url`: página del producto en Cardmarket **sin parámetros** (es la clave para cruzar con las ofertas de Jose).
+- `idioma`: `es en fr de it pt ja ko zh` (código de la bandera de la oferta en Cardmarket). Si falta, se entiende `es`.
+  La web pone en la esquina de cada foto una etiqueta con la bandera y el código (las que no son `es` salen oscuras con borde dorado),
+  hay filtro por idioma, y los PDF y Excel de stock/informe/intercambio también lo muestran.
+- `url`: página del producto en Cardmarket **sin parámetros**. Junto con `idioma` es la clave para cruzar con las ofertas de Jose.
 - `type`: `grass fire water lightning psychic fighting darkness metal dragon colorless trainer code` (solo decorativo si falta la foto; mira el símbolo de energía de la carta).
 - `tag`: `""`, `"ex"`, `"Ilustración especial"` (número mayor que el total de la colección o arte completo), `"Classic"`.
 - `toploader`: `true` si el comentario de la oferta menciona toploader.
@@ -100,6 +104,12 @@ Cardmarket tiene Cloudflare y bloquea navegadores automatizados. Método que fun
 3. Conectar con Playwright: `chromium.connect_over_cdp("http://localhost:9222")` y usar esa pestaña/contexto.
 4. **Esperar 15–20 segundos entre páginas.** Con menos, Cloudflare bloquea cada ~20 páginas.
 5. Si sale Cloudflare a mitad: parar y pedir a Jose que lo resuelva en esa ventana.
+6. **Scripts desatendidos** (p. ej. `data/colecciones/preparar_colecciones.py`): ante Cloudflare esperan 10 min y recargan, hasta 12 veces.
+   Si sigue, quedan **en pausa** así: **cierran la conexión CDP** (Chrome sigue abierto; con la automatización enganchada el
+   «no soy un robot» a veces ni carga), **abren la verificación en una pestaña nueva** lanzando `chrome.exe` con el mismo perfil
+   (`--remote-debugging-port=9222 --user-data-dir="C:\chrome-cardmarket"`) y comprueban cada 30 s, **sin conectarse**, la lista
+   de pestañas en `http://localhost:9222/json/list`. Cuando una pestaña de Cardmarket ya no está en «Un momento…», se reconectan solas
+   y siguen. Si Chrome se cierra, esperan a que se vuelva a abrir con ese comando. Todo queda en el log.
 
 Imágenes: la imagen principal está en `og:image` de la página del producto. La URL acaba en `.jpg` pero los bytes son **PNG**.
 Convertir a WebP de 380 px de ancho, calidad 78 (Pillow) y guardar como `img/<id>.webp`.
@@ -144,8 +154,10 @@ Convertir a WebP de 380 px de ancho, calidad 78 (Pillow) y guardar como `img/<id
 
 1. Con la sesión de Jose iniciada en el Chrome del puerto 9222, lee **todas las páginas** de *Vender → Mis ofertas*
    (la página de stock propio de Cardmarket; compruébala navegando desde el menú Vender la primera vez y apunta aquí la URL: `URL_MIS_OFERTAS = https://www.cardmarket.com/es/Pokemon/Stock/Offers/Singles` (20 ofertas por página, `?site=N`)): nombre, url del producto, precio, cantidad y comentario de cada oferta.
-   Si una carta tiene varias ofertas (mismo url), suma cantidades y usa el precio más bajo.
-2. Cruza por `url` (sin parámetros) con `cartas.json`:
+   Lee también el **idioma** de cada oferta (su bandera: `aria-label` «Español», «Inglés»…).
+   Si una carta tiene varias ofertas (mismo url **y mismo idioma**), suma cantidades y usa el precio más bajo.
+   **La misma carta en otro idioma es otra entrada** de `cartas.json` (id nuevo, mismo url, otro `idioma`).
+2. Cruza por `url` (sin parámetros) **+ `idioma`** con `cartas.json`:
    - **Nueva** → añade entrada a `cartas.json` (ver formato), descarga su foto a `img/<id>.webp`, añádela a `stock.csv`.
      Si su url está en `suelo_pendiente.csv`, pasa esa fila a `suelo.csv` con el id nuevo y quítala de `suelo_pendiente.csv`.
    - **Existente** → actualiza precio y cantidad en `stock.csv` (y en `cartas.json`).
@@ -156,8 +168,8 @@ Convertir a WebP de 380 px de ancho, calidad 78 (Pillow) y guardar como `img/<id
 
 ## Flujo C — Suelo («actualiza el suelo»)
 
-Para cada carta con cantidad > 0 en `stock.csv`: abre su `url` + `?language=4&minCondition=2`
-(los «Código Live» sin filtro de idioma), coge la oferta más barata **ignorando las del propio Jose**
+Para cada carta con cantidad > 0 en `stock.csv`: abre su `url` + `?language=N&minCondition=2` con **el idioma de la carta**
+(`N`: en 1, fr 2, de 3, es 4, it 5, zh 6, ja 7, pt 8, ko 10; está en `IDIOMAS.CM` de `idiomas.js`; los «Código Live» sin filtro de idioma), coge la oferta más barata **ignorando las del propio Jose**
 (su nombre de vendedor en Cardmarket: `USUARIO_CM = BePokemon`)
 y escribe `suelo.csv`. **Haz lo mismo con todas las `deseadas` y toda la `coleccion_30c` de `cartas.json`** (campos `suelo`, `ofertas`, `fecha`),
 para que `intercambio.html` tenga los valores al día (una carta que esté en varias listas se consulta una sola vez; son unas 190 páginas,

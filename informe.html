@@ -84,7 +84,7 @@ tfoot td{font-weight:700;background:var(--binder-2)}
 <div class="wrap">
   <div class="top"><span class="eyebrow">Uso interno · no enlazada desde la web</span><a href="./">← Volver a la carpeta</a></div>
   <h1>Mis precios frente al suelo de Cardmarket</h1>
-  <p class="lead">Compara cada carta en stock con la oferta más barata de otros vendedores en <strong>español y Near Mint</strong>. Sirve para ver cuánto dejarías de ganar si bajaras al suelo para venderlo todo rápido.</p>
+  <p class="lead">Compara cada carta en stock con la oferta más barata de otros vendedores en <strong>el idioma de la carta (casi todas en español) y Near Mint</strong>. Sirve para ver cuánto dejarías de ganar si bajaras al suelo para venderlo todo rápido.</p>
 
   <div class="status" id="status">Cargando datos…</div>
 
@@ -106,7 +106,7 @@ tfoot td{font-weight:700;background:var(--binder-2)}
     <table>
       <thead><tr>
         <th></th><th data-s="name">Carta</th><th class="n" data-s="qty">Cant.</th>
-        <th class="n" data-s="price">Mi precio</th><th class="n" data-s="floor">Suelo ES</th>
+        <th class="n" data-s="price">Mi precio</th><th class="n" data-s="floor">Suelo</th>
         <th class="n" data-s="diff">Diferencia</th><th class="n" data-s="pct">%</th>
         <th class="n" data-s="lost">Si bajo al suelo</th><th data-s="state">Situación</th>
       </tr></thead>
@@ -118,6 +118,7 @@ tfoot td{font-weight:700;background:var(--binder-2)}
 </div>
 <div class="toast" id="toast" hidden></div>
 
+<script src="idiomas.js"></script>
 <script>
 const CARDS = [];
 const IMGS = {};
@@ -292,7 +293,7 @@ function render(){
   const list = filtered();
   document.getElementById('tb').innerHTML = list.map(r => `<tr>
     <td>${IMGS[r.id] ? `<img src="${IMGS[r.id]}" alt="" loading="lazy">` : ''}</td>
-    <td><div class="name">${esc(r.name)}</div><div class="sub">${esc(r.set)}${r.numLabel && r.numLabel!=='Código' ? ' · '+esc(r.numLabel) : ''} · <a href="${esc(r.url)}?language=4&minCondition=2" target="_blank" rel="noopener">ver ofertas</a></div></td>
+    <td><div class="name">${esc(r.name)}</div><div class="sub">${esc(r.set)}${r.numLabel && r.numLabel!=='Código' ? ' · '+esc(r.numLabel) : ''}${IDIOMAS.code(r.idioma)!=='es' ? ' · <b>'+IDIOMAS.name(r.idioma)+'</b>' : ''} · <a href="${esc(r.url)}${IDIOMAS.filtro(r.idioma)}" target="_blank" rel="noopener">ver ofertas</a></div></td>
     <td class="n mono">${r.qty}</td>
     <td class="n mono">${eur(r.price)}</td>
     <td class="n mono">${r.floor==null ? '—' : eur(r.floor)}</td>
@@ -349,7 +350,7 @@ document.getElementById('pdf').addEventListener('click', ev => busy(ev.currentTa
 
   /* ---- Página 1: resumen ---- */
   let y = M;
-  doc.setFont('helvetica','bold'); doc.setFontSize(18); doc.setTextColor(...ink); doc.text('Mis precios frente al suelo de Cardmarket (español, NM)', M, y+7);
+  doc.setFont('helvetica','bold'); doc.setFontSize(18); doc.setTextColor(...ink); doc.text('Mis precios frente al suelo de Cardmarket (idioma de la carta, NM)', M, y+7);
   doc.setFont('helvetica','normal'); doc.setFontSize(9.5); doc.setTextColor(...muted);
   doc.text(pdfText(`Informe del ${today()} · suelo consultado el ${floorDate||'-'} · ${list.length} cartas · ${T.copies} copias`), M, y+13);
   doc.setTextColor(...ink); doc.text(pdfText(modeText(cfg)), M, y+18.5);
@@ -390,12 +391,13 @@ document.getElementById('pdf').addEventListener('click', ev => busy(ev.currentTa
   const TX = {n:M+2, img:M+8, name:M+17, qty:150, price:178, floor:204, web:234, lost:W-M-2};
   doc.setFillColor(...ink); doc.rect(M, y, W-2*M, 6.5, 'F'); doc.setFontSize(8); doc.setTextColor(255,255,255);
   doc.text('#', TX.n, y+4.4); doc.text('Carta', TX.name, y+4.4); doc.text('Cant.', TX.qty, y+4.4, {align:'right'}); doc.text('Mi precio', TX.price, y+4.4, {align:'right'});
-  doc.text('Suelo ES', TX.floor, y+4.4, {align:'right'}); doc.text('Precio web ahora', TX.web, y+4.4, {align:'right'}); doc.text('Si bajo al suelo', TX.lost, y+4.4, {align:'right'});
+  doc.text('Suelo', TX.floor, y+4.4, {align:'right'}); doc.text('Precio web ahora', TX.web, y+4.4, {align:'right'}); doc.text('Si bajo al suelo', TX.lost, y+4.4, {align:'right'});
   y += 7.5;
   if (!top.length){ doc.setFont('helvetica','normal'); doc.setFontSize(9.5); doc.setTextColor(...muted); doc.text('Ninguna carta por encima del suelo.', M+2, y+5); }
-  top.forEach((r, i) => {
+  for (const [i, r] of top.entries()) {
     const RH = 9.3;
     if (pic.get(r)) doc.addImage(pic.get(r), 'JPEG', TX.img, y+0.4, 6.1, 8.5);
+    await IDIOMAS.pdfBadge(doc, r.idioma, TX.img, y+0.4, 6.1);
     doc.setFont('helvetica','bold'); doc.setFontSize(9); doc.setTextColor(...muted); doc.text(String(i+1), TX.n, y+6);
     doc.setTextColor(...ink); doc.text(fit(r.name, 70), TX.name, y+4.1);
     doc.setFont('helvetica','normal'); doc.setFontSize(7.5); doc.setTextColor(...muted); doc.text(fit(r.numLabel==='Código' ? r.set : `${r.set} · ${r.numLabel}`, 90), TX.name, y+7.7);
@@ -404,7 +406,7 @@ document.getElementById('pdf').addEventListener('click', ev => busy(ev.currentTa
     const wp = web.get(r); doc.setFont('helvetica', wp < r.price ? 'bold' : 'normal'); doc.setTextColor(...(wp < r.price ? gold : ink)); doc.text(eur(wp), TX.web, y+6, {align:'right'});
     doc.setFont('helvetica','bold'); doc.setTextColor(...colors.bad); doc.text('-' + eur(r.lost), TX.lost, y+6, {align:'right'});
     doc.setDrawColor(...line); doc.line(M, y+RH-0.2, W-M, y+RH-0.2); y += RH;
-  });
+  }
 
   /* ---- Tabla compacta: ~12 filas por página ---- */
   const ROW = 13.6;
@@ -415,18 +417,19 @@ document.getElementById('pdf').addEventListener('click', ev => busy(ev.currentTa
     y = M + 8;
     doc.setFillColor(...ink); doc.rect(M, y, W-2*M, 7, 'F'); doc.setFontSize(8.2); doc.setTextColor(255,255,255);
     doc.text('Carta', X.name, y+4.8); doc.text('Cant.', X.qty, y+4.8, {align:'right'}); doc.text('Mi precio', X.price, y+4.8, {align:'right'});
-    doc.text('Suelo ES', X.floor, y+4.8, {align:'right'}); doc.text('Precio web ahora', X.web, y+4.8, {align:'right'}); doc.text('Dif.', X.diff, y+4.8, {align:'right'});
+    doc.text('Suelo', X.floor, y+4.8, {align:'right'}); doc.text('Precio web ahora', X.web, y+4.8, {align:'right'}); doc.text('Dif.', X.diff, y+4.8, {align:'right'});
     doc.text('%', X.pct, y+4.8, {align:'right'}); doc.text('Si bajo', X.lost, y+4.8, {align:'right'}); doc.text('Situación', X.sit, y+4.8);
     y += 8;
   }
   doc.addPage(); head();
-  list.forEach(r => {
+  for (const r of list) {
     if (y + ROW > BOTTOM){ doc.addPage(); head(); }
     if (pic.get(r)) doc.addImage(pic.get(r), 'JPEG', X.img+0.5, y+0.6, 8.8, 12.3);
     else { doc.setFillColor(...soft); doc.rect(X.img+0.5, y+0.6, 8.8, 12.3, 'F'); }
+    await IDIOMAS.pdfBadge(doc, r.idioma, X.img+0.5, y+0.6, 8.8);
     doc.setFont('helvetica','bold'); doc.setFontSize(9.5); doc.setTextColor(...ink); doc.text(fit(r.name, X.qty-X.name-14), X.name, y+5.6);
     doc.setFont('helvetica','normal'); doc.setFontSize(7.8); doc.setTextColor(...muted);
-    doc.text(fit((r.numLabel==='Código' ? r.set : `${r.set} · ${r.numLabel}`) + (r.tag ? ` · ${r.tag}` : ''), X.qty-X.name-14), X.name, y+10);
+    doc.text(fit((r.numLabel==='Código' ? r.set : `${r.set} · ${r.numLabel}`) + (r.tag ? ` · ${r.tag}` : '') + (IDIOMAS.code(r.idioma)!=='es' ? ` · ${IDIOMAS.name(r.idioma)}` : ''), X.qty-X.name-14), X.name, y+10);
     doc.setFontSize(9); doc.setTextColor(...ink);
     doc.text(String(r.qty), X.qty, y+7.6, {align:'right'}); doc.text(eur(r.price), X.price, y+7.6, {align:'right'});
     doc.text(r.floor==null?'-':eur(r.floor), X.floor, y+7.6, {align:'right'});
@@ -437,7 +440,7 @@ document.getElementById('pdf').addEventListener('click', ev => busy(ev.currentTa
     doc.text(r.lost==null?'-':r.lost>0.005?'-'+eur(r.lost):eur(0), X.lost, y+7.6, {align:'right'});
     doc.setFont('helvetica','bold'); doc.setFontSize(8.2); doc.setTextColor(...colors[r.sit.k]); doc.text(pdfText(r.sit.label), X.sit, y+7.6);
     doc.setDrawColor(...line); doc.line(M, y+ROW-0.3, W-M, y+ROW-0.3); y += ROW;
-  });
+  }
   if (y + 9 > BOTTOM){ doc.addPage(); head(); }
   doc.setFont('helvetica','bold'); doc.setFontSize(9.5); doc.setTextColor(...ink);
   doc.text(`Total (${list.length} cartas · ${T.copies} copias)`, X.name, y+6);
@@ -447,7 +450,7 @@ document.getElementById('pdf').addEventListener('click', ev => busy(ev.currentTa
 
   const pages = doc.getNumberOfPages();
   for (let p=1;p<=pages;p++){ doc.setPage(p); doc.setFont('helvetica','normal'); doc.setFontSize(7.5); doc.setTextColor(...muted);
-    doc.text('Suelo = oferta más barata de otros vendedores en español y Near Mint. «Precio web ahora» = lo que enseña la web según config.json. No incluye comisión de Cardmarket ni envío.', M, H-6);
+    doc.text('Suelo = oferta más barata de otros vendedores en el idioma de la carta y Near Mint. «Precio web ahora» = lo que enseña la web según config.json. No incluye comisión de Cardmarket ni envío.', M, H-6);
     doc.text(`Página ${p} de ${pages}`, W-M, H-6, {align:'right'}); }
   saveBlob(doc.output('blob'), `informe-suelo_${stamp()}.pdf`); toast('PDF descargado');
 }));
@@ -456,30 +459,31 @@ document.getElementById('xlsx').addEventListener('click', ev => busy(ev.currentT
   if (!window.ExcelJS) await loadScript('https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js');
   const list = filtered(), pics = await thumbs(list);
   const wb = new ExcelJS.Workbook(); const ws = wb.addWorksheet('Suelo', {views:[{state:'frozen', ySplit:3}]});
-  ws.columns = [{width:10},{width:28},{width:22},{width:11},{width:8},{width:12},{width:12},{width:12},{width:10},{width:14},{width:18},{width:12}];
-  ws.mergeCells('A1:L1'); ws.getCell('A1').value = `Mis precios frente al suelo de Cardmarket (español, NM) — informe ${today()}, suelo del ${floorDate||'-'}`;
+  ws.columns = [{width:10},{width:28},{width:22},{width:11},{width:11},{width:8},{width:12},{width:12},{width:12},{width:10},{width:14},{width:18},{width:12}];
+  ws.mergeCells('A1:M1'); ws.getCell('A1').value = `Mis precios frente al suelo de Cardmarket (idioma de la carta, NM) — informe ${today()}, suelo del ${floorDate||'-'}`;
   ws.getCell('A1').font = {bold:true, size:14}; ws.getRow(1).height = 24;
-  const h = ws.getRow(3); h.values = ['Foto','Carta','Colección','Número','Cant.','Mi precio','Suelo ES','Diferencia','%','Si bajo al suelo','Situación','Cardmarket'];
+  const h = ws.getRow(3); h.values = ['Foto','Carta','Colección','Número','Idioma','Cant.','Mi precio','Suelo','Diferencia','%','Si bajo al suelo','Situación','Cardmarket'];
   h.font = {bold:true, color:{argb:'FFFFFFFF'}}; h.eachCell(c => c.fill = {type:'pattern', pattern:'solid', fgColor:{argb:'FF10202A'}});
   const fill = {good:'FFD6F0DF', warn:'FFF6E7C4', bad:'FFF7D9CF', none:'FFEDEFF0'};
   list.forEach((r,i) => {
     const n = 4+i, row = ws.getRow(n);
-    row.values = ['', r.name, r.set, r.numLabel, r.qty, r.price, r.floor ?? '',
-      r.floor==null ? '' : {formula:`F${n}-G${n}`, result:r.diff},
-      r.floor==null ? '' : {formula:`IF(G${n}=0,"",(F${n}-G${n})/G${n})`, result:r.pct/100},
-      r.floor==null ? '' : {formula:`MAX(0,F${n}-G${n})*E${n}`, result:r.lost},
-      r.sit.label, {text:'Ver ofertas', hyperlink:r.url+'?language=4&minCondition=2'}];
+    row.values = ['', r.name, r.set, r.numLabel, IDIOMAS.name(r.idioma), r.qty, r.price, r.floor ?? '',
+      r.floor==null ? '' : {formula:`G${n}-H${n}`, result:r.diff},
+      r.floor==null ? '' : {formula:`IF(H${n}=0,"",(G${n}-H${n})/H${n})`, result:r.pct/100},
+      r.floor==null ? '' : {formula:`MAX(0,G${n}-H${n})*F${n}`, result:r.lost},
+      r.sit.label, {text:'Ver ofertas', hyperlink:r.url+IDIOMAS.filtro(r.idioma)}];
     row.height = 64; row.eachCell({includeEmpty:true}, c => c.alignment = {vertical:'middle', wrapText:true});
-    [6,7,8,10].forEach(k => row.getCell(k).numFmt = '#,##0.00 €'); row.getCell(9).numFmt = '0%';
-    row.getCell(2).font = {bold:true}; row.getCell(11).fill = {type:'pattern', pattern:'solid', fgColor:{argb:fill[r.sit.k]}};
-    row.getCell(12).font = {color:{argb:'FF1F5FBF'}, underline:true};
+    [7,8,9,11].forEach(k => row.getCell(k).numFmt = '#,##0.00 €'); row.getCell(10).numFmt = '0%';
+    row.getCell(2).font = {bold:true}; row.getCell(12).fill = {type:'pattern', pattern:'solid', fgColor:{argb:fill[r.sit.k]}};
+    row.getCell(13).font = {color:{argb:'FF1F5FBF'}, underline:true};
+    if (IDIOMAS.code(r.idioma) !== 'es') row.getCell(5).font = {bold:true, color:{argb:'FFB07C14'}};
     if (pics[i]){ const id = wb.addImage({base64:pics[i], extension:'jpeg'}); ws.addImage(id, {tl:{col:0.1, row:n-1+0.06}, ext:{width:58, height:81}}); }
   });
   const t = 4+list.length, L = t-1, tr = ws.getRow(t);
-  tr.values = ['', 'TOTAL', '', '', {formula:`SUM(E4:E${L})`}, '', '', '', '', {formula:`SUM(J4:J${L})`}, '', ''];
-  tr.font = {bold:true}; tr.getCell(10).numFmt = '#,##0.00 €';
-  const t2 = ws.getRow(t+1); t2.values = ['', 'Stock a mis precios', '', '', '', {formula:`SUMPRODUCT(E4:E${L},F4:F${L})`}]; t2.getCell(6).numFmt = '#,##0.00 €'; t2.font = {bold:true};
-  const t3 = ws.getRow(t+2); t3.values = ['', 'Stock a precio suelo', '', '', '', {formula:`SUMPRODUCT(E4:E${L},F4:F${L})-J${t}`}]; t3.getCell(6).numFmt = '#,##0.00 €'; t3.font = {bold:true};
+  tr.values = ['', 'TOTAL', '', '', '', {formula:`SUM(F4:F${L})`}, '', '', '', '', {formula:`SUM(K4:K${L})`}, '', ''];
+  tr.font = {bold:true}; tr.getCell(11).numFmt = '#,##0.00 €';
+  const t2 = ws.getRow(t+1); t2.values = ['', 'Stock a mis precios', '', '', '', '', {formula:`SUMPRODUCT(F4:F${L},G4:G${L})`}]; t2.getCell(7).numFmt = '#,##0.00 €'; t2.font = {bold:true};
+  const t3 = ws.getRow(t+2); t3.values = ['', 'Stock a precio suelo', '', '', '', '', {formula:`SUMPRODUCT(F4:F${L},G4:G${L})-K${t}`}]; t3.getCell(7).numFmt = '#,##0.00 €'; t3.font = {bold:true};
   const buf = await wb.xlsx.writeBuffer();
   saveBlob(new Blob([buf], {type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}), `informe-suelo_${stamp()}.xlsx`); toast('Excel descargado');
 }));
