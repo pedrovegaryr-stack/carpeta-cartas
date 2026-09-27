@@ -478,6 +478,8 @@ document.getElementById('export-pdf').addEventListener('click', ev => busy(ev.cu
   ].filter(s => s.list.length);
   const all = sections.flatMap(s => s.list), pics = await thumbs(all), pic = new Map(all.map((c,i) => [c, pics[i]]));
   const total = L.reduce((a,c)=>a+c.price*c.qty,0), copies = L.reduce((a,c)=>a+c.qty,0), onSale = L.filter(c => c.orig).length;
+  // Si más de la mitad están rebajadas, la etiqueta en cada carta sobra: ya lo dice la cabecera y se ve el precio tachado.
+  const saleTag = onSale * 2 <= L.length;
 
   const doc = new window.jspdf.jsPDF({unit:'mm', format:'a4'});
   const W = 210, H = 297, M = 10, BOTTOM = H - 12;
@@ -534,7 +536,7 @@ document.getElementById('export-pdf').addEventListener('click', ev => busy(ev.cu
     else { doc.setFillColor(...soft); doc.rect(ix, y, IW, IH, 'F'); doc.setFont('helvetica','bold'); doc.setFontSize(7); doc.setTextColor(...muted);
       doc.text(doc.splitTextToSize(pdfText(c.name), IW-3).slice(0,3), cx, y+IH/2-2, {align:'center'}); }
     doc.setDrawColor(...line); doc.rect(ix, y, IW, IH);
-    if (c.orig){ doc.setFillColor(...sale); doc.roundedRect(ix+1, y+1, 15, 4.6, 1, 1, 'F'); doc.setFont('helvetica','bold'); doc.setFontSize(6.5); doc.setTextColor(255,255,255); doc.text('Rebajada', ix+8.5, y+4.2, {align:'center'}); }
+    if (c.orig && saleTag){ doc.setFillColor(...sale); doc.roundedRect(ix+1, y+1, 15, 4.6, 1, 1, 'F'); doc.setFont('helvetica','bold'); doc.setFontSize(6.5); doc.setTextColor(255,255,255); doc.text('Rebajada', ix+8.5, y+4.2, {align:'center'}); }
     doc.setFont('helvetica','bold'); doc.setFontSize(8.8); doc.setTextColor(...ink);
     doc.text(fit(c.name, CW-1), cx, y+IH+4, {align:'center'});
     doc.setFont('helvetica','normal'); doc.setFontSize(7.2); doc.setTextColor(...muted);
