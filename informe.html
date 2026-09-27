@@ -65,6 +65,16 @@ tfoot td{font-weight:700;background:var(--binder-2)}
 .opt{display:inline-flex;align-items:center;gap:6px;color:var(--muted);font-size:13px}
 .opt input[type=number],.opt input[type=password]{width:72px;background:var(--pocket);color:var(--ink);border:1px solid var(--edge);border-radius:6px;padding:6px 8px;font:13px var(--mono)}
 .btn:disabled{opacity:.5;cursor:default}
+.mode-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin:14px 0 10px}
+.field{display:flex;flex-direction:column;gap:4px;background:var(--pocket);border:1px solid var(--edge);border-radius:10px;padding:10px 12px}
+.field>span:first-child{font:700 12.5px var(--body);color:var(--ink)}
+.field small{color:var(--faint);font-size:11.5px}
+.field .inp{display:flex;align-items:center;gap:6px;color:var(--muted)}
+.field input[type=number]{width:90px;background:var(--binder);color:var(--ink);border:1px solid var(--edge);border-radius:6px;padding:6px 8px;font:14px var(--mono)}
+.field.chk>span:first-child{display:flex;align-items:center;gap:8px}
+.preview{color:var(--muted);margin-bottom:12px}
+.preview b{color:var(--ink)} .preview b.g{color:var(--gold)}
+@media (max-width:760px){.mode-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 .mode-msg{margin-top:10px;color:var(--ink)}
 .toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:var(--ink);color:#10202a;font-weight:700;padding:10px 14px;border-radius:8px;font-size:13px}
 @media (max-width:760px){ .kpis{grid-template-columns:repeat(2,minmax(0,1fr))} .kpi b{font-size:20px} }
@@ -142,16 +152,47 @@ function paintMode(msg, kind){
     <div class="mode-row">
       <div><b>La web muestra ahora: ${on ? 'precios de suelo (rebajas activadas)' : 'tus precios normales'}.</b>
         <div class="note">Al cambiarlo, la web se actualiza para todo el mundo en un minuto aproximadamente.</div></div>
+    </div>
+    <div class="mode-grid">
+      <label class="field" for="pct"><span>Suelo +</span><span class="inp"><input type="number" id="pct" min="0" max="300" step="1" value="${Number(c.porcentaje ?? 0)}"> %</span><small>Porcentaje por encima del suelo</small></label>
+      <label class="field" for="minp"><span>Precio mínimo</span><span class="inp"><input type="number" id="minp" min="0" step="0.01" value="${Number(c.minimo ?? 0.02)}"> €</span><small>Ninguna carta baja de aquí</small></label>
+      <label class="field" for="tope"><span>Solo cartas de hasta</span><span class="inp"><input type="number" id="tope" min="0" step="0.5" value="${Number(c.tope ?? 0)}"> €</span><small>0 = todas las cartas</small></label>
+      <label class="field chk" for="adj"><span><input type="checkbox" id="adj" ${Number(c.ajuste) < 0 ? 'checked' : ''}> 1 céntimo menos</span><small>Resta 0,01 € al resultado</small></label>
+    </div>
+    <div class="preview" id="preview"></div>
+    <div class="mode-row">
       <div class="mode-actions">
-        <label class="opt" for="adj"><input type="checkbox" id="adj" ${Number(c.ajuste) < 0 ? 'checked' : ''}> 1 céntimo por debajo del suelo</label>
-        <label class="opt" for="minp">Mínimo <input type="number" id="minp" min="0" step="0.01" value="${Number(c.minimo ?? 0.02)}"> €</label>
         ${modeState.pinNeeded ? `<label class="opt" for="pin">PIN <input type="password" id="pin" value="${esc(pinGet())}" autocomplete="off"></label>` : ''}
         <button class="btn ${on ? '' : 'primary'}" type="button" data-modo="suelo">${on ? 'Actualizar rebajas' : 'Activar precios de suelo'}</button>
         <button class="btn ${on ? 'primary' : ''}" type="button" data-modo="mis-precios" ${on ? '' : 'disabled'}>Volver a mis precios</button>
       </div>
     </div>
     ${msg ? `<div class="mode-msg">${msg}</div>` : ''}`;
+  updatePreview();
 }
+
+function settings(){
+  const v = id => document.getElementById(id);
+  return {
+    porcentaje: Math.max(0, Number(v('pct')?.value) || 0),
+    minimo: Math.max(0, Number(v('minp')?.value) || 0),
+    tope: Math.max(0, Number(v('tope')?.value) || 0),
+    ajuste: v('adj')?.checked ? -0.01 : 0
+  };
+}
+function saleTarget(r, s){
+  if (r.floor == null) return null;
+  if (s.tope > 0 && r.price > s.tope) return null;
+  const t = Math.max(s.minimo, Math.round((r.floor * (1 + s.porcentaje/100) + s.ajuste) * 100) / 100);
+  return t < r.price ? t : null;
+}
+function updatePreview(){
+  const el = document.getElementById('preview'); if (!el || !rows.length) return;
+  const s = settings(); let n = 0, before = 0, after = 0;
+  rows.forEach(r => { const t = saleTarget(r, s); before += r.price*r.qty; after += (t ?? r.price)*r.qty; if (t != null) n++; });
+  el.innerHTML = `Con estos ajustes se rebajarían <b>${n}</b> cartas y el stock pasaría de <b>${eur(before)}</b> a <b class="g">${eur(after)}</b> (−${eur(before-after)}).`;
+}
+document.getElementById('mode').addEventListener('input', updatePreview);
 
 async function showMode(){
   try {
@@ -178,7 +219,7 @@ async function waitDeployed(modo){
 document.getElementById('mode').addEventListener('click', async e => {
   const b = e.target.closest('[data-modo]'); if (!b) return;
   const modo = b.dataset.modo;
-  const body = {modo, ajuste: document.getElementById('adj')?.checked ? -0.01 : 0, minimo: Number(document.getElementById('minp')?.value || 0.02)};
+  const body = {modo, ...settings()};
   const pinEl = document.getElementById('pin'); if (pinEl){ body.pin = pinEl.value; pinSet(pinEl.value); }
   document.querySelectorAll('#mode button').forEach(x => x.disabled = true);
   paintMode('Guardando el cambio…');
@@ -259,6 +300,7 @@ function render(){
     <td><span class="pill ${r.sit.k}">${r.sit.label}</span></td></tr>`).join('');
   const t = totals(list);
   document.getElementById('tf').innerHTML = `<tr><td></td><td>Total (${list.length} cartas)</td><td class="n mono">${t.copies}</td><td class="n mono">${eur(t.mine)}</td><td class="n mono">${eur(t.atFloor)}</td><td class="n mono">${eur(t.lost)}</td><td></td><td class="n mono">−${eur(t.lost)}</td><td></td></tr>`;
+  updatePreview();
   document.getElementById('foot').textContent = '«Stock a precio suelo» usa el suelo en las cartas donde estás por encima y tu propio precio donde ya eres el más barato. No incluye la comisión de Cardmarket ni los gastos de envío.';
 }
 

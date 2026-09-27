@@ -42,6 +42,8 @@ module.exports = async (req, res) => {
     const next = { ...current, modo: body.modo };
     if (body.ajuste !== undefined && !isNaN(Number(body.ajuste))) next.ajuste = Number(body.ajuste);
     if (body.minimo !== undefined && !isNaN(Number(body.minimo))) next.minimo = Number(body.minimo);
+    if (body.porcentaje !== undefined && !isNaN(Number(body.porcentaje))) next.porcentaje = Number(body.porcentaje);
+    if (body.tope !== undefined && !isNaN(Number(body.tope))) next.tope = Number(body.tope);
 
     await gh(`/repos/${repo}/contents/config.json`, {
       method: 'PUT',
