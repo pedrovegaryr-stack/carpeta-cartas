@@ -176,10 +176,15 @@ para que `intercambio.html` tenga los valores al día. 15–20 s entre cartas. C
     Ej.: si faltan 1,40 € y un Pikachu que ya tengo vale 1,40 €, sale el primero.
   - Opción «Cuadrar usando mis cartas de hasta X €» (2 € por defecto; vacío o 0 = sin límite): en el lado «Doy» no propone cartas más caras.
   - Campo «Nombre de la otra persona»: las columnas pasan a «Recibo de [nombre]» / «Doy a [nombre]».
-  - «Descargar propuesta en PDF»: `propuesta-intercambio_[nombre]_AAAA-MM-DD_HH-MM.pdf` (nombre sin tildes ni espacios), título
-    «Propuesta de intercambio con [nombre]», las dos columnas, balanza y la sección «Opciones para cuadrar»: frase con la descompensación,
-    las 3 combinaciones de «Cuadrar» (fotos, nombre, número, valor, quién las pondría y cómo quedaría la balanza). Si Jose añadió una
-    con «Cuadrar» y sigue en la propuesta, sale como «Opción elegida» y las otras como «Alternativa».
+  - «Descargar propuesta en PDF»: `propuesta-intercambio_[nombre]_AAAA-MM-DD_HH-MM.pdf` (nombre sin tildes ni espacios).
+    **Lo lee la otra persona**: texto neutro, desde fuera. Columnas «[nombre] da» / «Jose da»; nada de «doy/recibo» ni negativos en rojo.
+    Título «Propuesta de intercambio con [nombre]», franja «[nombre] da N cartas · X € | Jose da N cartas · Y € | Diferencia Z €»
+    y la frase «Para igualar, faltarían Z € por parte de [nombre]» (o «por mi parte»). Cartas en cuadrícula (3 por fila, o 4 si no cabe),
+    con nombre, número y valor debajo. «Opciones para cuadrar»: las 3 combinaciones en fila (Opción 1-3, fotos grandes, quién las
+    añadiría y cómo quedaría); si Jose añadió una con «Cuadrar», sale como Opción 1 con la marca ELEGIDA y las otras son alternativas
+    calculadas sin ella. Las opciones nunca se parten: si no caben en la primera página, van enteras a la segunda.
+    Pie: «Enviado por BePokemon · Responde con el número de opción que prefieras (o propón otra)».
+  - «Cuadrar» nunca sugiere una carta que ya esté en Recibo o en Doy (se compara por url).
   - La selección, el nombre, el límite y la opción elegida se guardan en el navegador (localStorage).
 
 ---
