@@ -311,6 +311,7 @@ document.querySelector('thead').addEventListener('click', e => { const th = e.ta
 
 /* ---------- Exportar ---------- */
 function saveBlob(blob, name){ const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(a.href),4000); }
+const stamp = () => { const d = new Date(), p = n => String(n).padStart(2,'0'); return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}_${p(d.getHours())}-${p(d.getMinutes())}`; };
 function loadScript(src){ return new Promise((res,rej)=>{ const s=document.createElement('script'); s.src=src; s.onload=res; s.onerror=()=>rej(new Error('script')); document.head.appendChild(s); }); }
 function loadImg(src){ return new Promise(res => { const i=new Image(); i.onload=()=>res(i); i.onerror=()=>res(null); i.src=src; }); }
 async function thumbs(list){ return Promise.all(list.map(async r => { if (!IMGS[r.id]) return null; const img = await loadImg(IMGS[r.id]); if (!img) return null;
@@ -365,7 +366,7 @@ document.getElementById('pdf').addEventListener('click', ev => busy(ev.currentTa
   for (let p=1;p<=pages;p++){ doc.setPage(p); doc.setFont('helvetica','normal'); doc.setFontSize(7.5); doc.setTextColor(...muted);
     doc.text('Suelo = oferta más barata de otros vendedores en español y Near Mint. No incluye comisión de Cardmarket ni envío.', M, H-6);
     doc.text(`Página ${p} de ${pages}`, W-M, H-6, {align:'right'}); }
-  saveBlob(doc.output('blob'), 'informe-suelo.pdf'); toast('PDF descargado');
+  saveBlob(doc.output('blob'), `informe-suelo_${stamp()}.pdf`); toast('PDF descargado');
 }));
 
 document.getElementById('xlsx').addEventListener('click', ev => busy(ev.currentTarget, 'Generando Excel…', async () => {
@@ -397,7 +398,7 @@ document.getElementById('xlsx').addEventListener('click', ev => busy(ev.currentT
   const t2 = ws.getRow(t+1); t2.values = ['', 'Stock a mis precios', '', '', '', {formula:`SUMPRODUCT(E4:E${L},F4:F${L})`}]; t2.getCell(6).numFmt = '#,##0.00 €'; t2.font = {bold:true};
   const t3 = ws.getRow(t+2); t3.values = ['', 'Stock a precio suelo', '', '', '', {formula:`SUMPRODUCT(E4:E${L},F4:F${L})-J${t}`}]; t3.getCell(6).numFmt = '#,##0.00 €'; t3.font = {bold:true};
   const buf = await wb.xlsx.writeBuffer();
-  saveBlob(new Blob([buf], {type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}), 'informe-suelo.xlsx'); toast('Excel descargado');
+  saveBlob(new Blob([buf], {type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}), `informe-suelo_${stamp()}.xlsx`); toast('Excel descargado');
 }));
 
 load();

@@ -442,6 +442,7 @@ function saveBlob(blob, name){
   document.body.appendChild(a); a.click(); a.remove();
   setTimeout(()=>URL.revokeObjectURL(a.href), 4000);
 }
+const stamp = () => { const d = new Date(), p = n => String(n).padStart(2,'0'); return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}_${p(d.getHours())}-${p(d.getMinutes())}`; };
 const today = () => new Date().toLocaleDateString('es-ES',{day:'2-digit',month:'2-digit',year:'numeric'});
 const byPrice = () => live().sort((a,b)=>b.price-a.price || a.num-b.num);
 const pdfText = s => String(s).replace('♀','(F)').replace(/[^\x00-\xFF€…]/g,'');
@@ -513,7 +514,7 @@ document.getElementById('export-pdf').addEventListener('click', ev => busy(ev.cu
   for (let p=1; p<=pages; p++){ doc.setPage(p); doc.setFont('helvetica','normal'); doc.setFontSize(8); doc.setTextColor(...muted);
     doc.text('Precios por unidad en euros. Todas las cartas están publicadas en Cardmarket.', M, 297-7);
     doc.text(`Página ${p} de ${pages}`, W-M, 297-7, {align:'right'}); }
-  saveBlob(doc.output('blob'), 'stock-cartas.pdf'); toast('PDF descargado');
+  saveBlob(doc.output('blob'), `stock-cartas_${stamp()}.pdf`); toast('PDF descargado');
 }));
 
 document.getElementById('export-xlsx').addEventListener('click', ev => busy(ev.currentTarget, 'Generando Excel…', async () => {
@@ -544,7 +545,7 @@ document.getElementById('export-xlsx').addEventListener('click', ev => busy(ev.c
   trow.font = {bold:true, size:12}; trow.height = 24; trow.getCell(7).numFmt = '#,##0.00 €';
   trow.eachCell({includeEmpty:true}, cell => { cell.fill = {type:'pattern', pattern:'solid', fgColor:{argb:'FFF6E7C4'}}; cell.alignment = {vertical:'middle'}; });
   const buf = await wb.xlsx.writeBuffer();
-  saveBlob(new Blob([buf], {type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}), 'stock-cartas.xlsx'); toast('Excel descargado');
+  saveBlob(new Blob([buf], {type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}), `stock-cartas_${stamp()}.xlsx`); toast('Excel descargado');
 }));
 
 document.getElementById('copy').addEventListener('click', () => {
