@@ -15,12 +15,13 @@ Habla con Jose en español, con pasos claros. Antes de cualquier acción irrever
 |---|---|---|
 | `index.html` | Catálogo público. Lee `cartas.json`, `stock.csv`, `config.json` y `suelo.csv` al cargar. | Casi nunca |
 | `informe.html` | Página privada (no enlazada): mis precios frente al suelo, exportar PDF/Excel y botón de rebajas. | Casi nunca |
-| `cartas.json` | **Catálogo**: datos fijos de cada carta + lista de cartas buscadas. | Claude Code al añadir cartas |
+| `intercambio.html` | Página privada (no enlazada): herramienta de intercambios (Recibo/Doy, balanza, «Cuadrar», PDF de propuesta). Lee `cartas.json`, `stock.csv` y `suelo.csv`. | Casi nunca |
+| `cartas.json` | **Catálogo**: datos fijos de cada carta + lista de cartas **deseadas** (buscadas + candidatas para cambios). | Claude Code al añadir cartas |
 | `stock.csv` | **Precio y cantidad** de cada carta (manda sobre `cartas.json`). Cantidad 0 = «Agotada». | Jose o Claude Code |
 | `suelo.csv` | Precio más barato de otros vendedores en Cardmarket (español, NM). | Claude Code |
 | `suelo_pendiente.csv` | Suelos mirados al listar cartas que aún no tienen id (`url;minimo;ofertas;fecha`). Pasan a `suelo.csv` en el Flujo B. | Claude Code |
 | `config.json` | Modo de precios (normal / rebajas). **No lo sobrescribas**: lo gestiona el botón de `informe.html` vía `api/modo.js`. | Botón del informe |
-| `img/<id>.webp` | Foto de cada carta. `img/w<num>.webp` = fotos de cartas buscadas. | Claude Code |
+| `img/<id>.webp` | Foto de cada carta. `img/w<num>.webp` = fotos de cartas deseadas. | Claude Code |
 | `api/modo.js` | Función de Vercel que edita `config.json` en GitHub (variables `GITHUB_TOKEN`, `GITHUB_REPO`). | Nunca |
 
 ### `cartas.json`
@@ -31,7 +32,12 @@ Habla con Jose en español, con pasos claros. Antes de cualquier acción irrever
      "url": "https://www.cardmarket.com/es/Pokemon/Products/Singles/30th-Celebration/Azumarill-30C068",
      "price": 0.25, "qty": 2, "type": "psychic", "tag": "", "toploader": false, "img": "img/1.webp"}
   ],
-  "buscadas": [ {"num": "023", "attack": "Thunder Shock", "img": "img/w023.webp"} ]
+  "deseadas": [
+    {"num": "023", "nombre": "Pikachu", "numLabel": "023/128", "set": "30th Celebration",
+     "url": "https://www.cardmarket.com/es/Pokemon/Products/Singles/30th-Celebration/Pikachu-30C023",
+     "img": "img/w023.webp", "attack": "Thunder Shock", "tag": "", "buscada": true,
+     "suelo": 0.54, "ofertas": "50+", "fecha": "27/09/2026"}
+  ]
 }
 ```
 - `id`: entero único. Para cartas nuevas usa `max(id) + 1`. **Nunca reutilices ni cambies un id** (lo usan `stock.csv`, `suelo.csv` y las fotos).
@@ -43,6 +49,11 @@ Habla con Jose en español, con pasos claros. Antes de cualquier acción irrever
 - `tag`: `""`, `"ex"`, `"Ilustración especial"` (número mayor que el total de la colección o arte completo), `"Classic"`.
 - `toploader`: `true` si el comentario de la oferta menciona toploader.
 - `price` / `qty`: valor inicial; los reales vienen de `stock.csv`.
+- `deseadas` (Flujo D): cartas que Jose aceptaría recibir. `buscada: true` = sale en la web pública («Busco para intercambio»);
+  `false` = solo candidata para cuadrar cambios en `intercambio.html`. Incluye también cartas que Jose ya tiene en stock
+  (la página las marca sola como «ya tengo» / «me falta» cruzando `url` con el stock). `attack`: ataque(s) de la carta, para distinguir versiones.
+  `suelo` / `ofertas` / `fecha`: suelo en español NM (mismas reglas del Flujo C); `suelo` es `null` si no hay ofertas.
+  Fotos en `img/w<num>.webp` (380 px, calidad 78); si la carta ya está en el stock, usa su foto `img/<id>.webp`.
 
 ### `stock.csv` (separador `;`, decimales con punto o coma)
 ```
@@ -138,7 +149,8 @@ Convertir a WebP de 380 px de ancho, calidad 78 (Pillow) y guardar como `img/<id
 Para cada carta con cantidad > 0 en `stock.csv`: abre su `url` + `?language=4&minCondition=2`
 (los «Código Live» sin filtro de idioma), coge la oferta más barata **ignorando las del propio Jose**
 (su nombre de vendedor en Cardmarket: `USUARIO_CM = BePokemon`)
-y escribe `suelo.csv`. 15–20 s entre cartas. Comprueba 2–3 a mano antes de hacerlas todas. Después commit + push.
+y escribe `suelo.csv`. **Haz lo mismo con todas las `deseadas` de `cartas.json`** (campos `suelo`, `ofertas`, `fecha`),
+para que `intercambio.html` tenga los valores al día. 15–20 s entre cartas. Comprueba 2–3 a mano antes de hacerlas todas. Después commit + push.
 
 **Cómo leer el suelo de una carta** (también para el modo «suelo» del Flujo A):
 - **No pulses «Mostrar más resultados».** Las ofertas vienen ordenadas de más barata a más cara: el suelo es la **primera oferta
@@ -148,10 +160,22 @@ y escribe `suelo.csv`. 15–20 s entre cartas. Comprueba 2–3 a mano antes de h
   Si hay botón «Mostrar más», escribe ese número seguido de `+` (p. ej. `25+`). Es solo orientativo.
   **No uses «Artículos disponibles»** de la ficha: cuenta todos los idiomas y estados.
 
-## Flujo D — Cartas buscadas para intercambio
+## Flujo D — Intercambios (deseadas + `intercambio.html`)
 
-Lista `buscadas` de `cartas.json`: `num`, `attack` (texto pequeño bajo el nombre) e `img` (`img/w<num>.webp`, foto descargada de su página de Cardmarket).
-Si Jose consigue una, quítala de la lista.
+- Lista `deseadas` de `cartas.json` (formato arriba). Ahora: **todos los Pikachu 023–052 y Pikachu ex 053–054 de 30th Celebration**,
+  también los que Jose ya tiene. Las 5 `buscada: true` son las que busca de verdad. Para añadir una: url del producto, foto a `img/w<num>.webp`
+  (imagen de `og:image` o del listado masivo) y su suelo (reglas del Flujo C). Marca `buscada: true` solo si Jose la busca de verdad.
+- Si Jose consigue una buscada, pon `buscada: false` (sigue como candidata).
+- `intercambio.html` (privada, sin enlace desde la web; mismo estilo que `informe.html`):
+  - «Recibo» = deseadas, «Doy» = stock con cantidad > 0. Valor de cada carta = su suelo en español (si una carta del stock no tiene suelo,
+    su precio de venta; si una deseada no tiene suelo, 0). Cualquier valor se puede cambiar a mano (sale con `*` en el PDF).
+  - Balanza: totales y diferencia en € y en % sobre lo que doy.
+  - «Cuadrar»: busca combinaciones de 1–3 cartas que acerquen la diferencia a 0 (de las deseadas si recibo menos; del stock si doy menos)
+    y enseña las 3 mejores (distintas entre sí) con botón «Añadir». Orden: **primero la que más se acerca a 0** (al céntimo);
+    si empatan, la que tenga más cartas «me falta» (en Recibo) o más bulk < 1 € (en Doy); luego la de menos cartas.
+    Ej.: si faltan 1,40 € y un Pikachu que ya tengo vale 1,40 €, sale el primero.
+  - «Descargar propuesta en PDF»: `propuesta-intercambio_AAAA-MM-DD_HH-MM.pdf`.
+  - La selección se guarda en el navegador (localStorage).
 
 ---
 

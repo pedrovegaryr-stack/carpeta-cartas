@@ -1,0 +1,455 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<title>Intercambio de cartas</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,700;12..96,800&family=Manrope:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap">
+<style>
+:root{
+  color-scheme: dark;
+  --binder:#0f1f28; --binder-2:#132732; --pocket:#172e3a; --edge:rgba(214,236,240,.09);
+  --ink:#eee8dc; --muted:#9db0b4; --faint:#6d858c; --gold:#e8ba5e;
+  --good:#6fc28a; --warn:#e8ba5e; --bad:#e58a6b; --recv:#7fb8d8;
+  --display:"Bricolage Grotesque","Avenir Next",system-ui,sans-serif;
+  --body:"Manrope","Segoe UI",system-ui,sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html,body{margin:0;background:var(--binder)}
+body{color:var(--ink);font:15px/1.5 var(--body);padding-inline:16px}
+.wrap{max-width:1180px;margin:0 auto;padding-block:28px 60px}
+a{color:var(--gold)}
+.top{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+.eyebrow{font:600 12px var(--mono);letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}
+h1{font:800 clamp(30px,4.4vw,48px)/1 var(--display);letter-spacing:-.02em;margin:18px 0 8px;text-wrap:balance}
+h2{font:800 22px/1.1 var(--display);margin:0}
+.lead{color:var(--muted);max-width:70ch;margin:0}
+.btn{display:inline-flex;align-items:center;gap:6px;border-radius:8px;padding:9px 13px;font:700 13px var(--body);cursor:pointer;border:1px solid var(--edge);background:var(--pocket);color:var(--ink)}
+.btn:hover{border-color:rgba(214,236,240,.3)}
+.btn.primary{background:var(--gold);color:#1a1406;border-color:var(--gold)}
+.btn:disabled{opacity:.5;cursor:default}
+.btn.sm{padding:5px 9px;font-size:12px}
+.note{color:var(--faint);font-size:12.5px}
+.status{border:1px solid var(--edge);border-radius:10px;padding:12px 14px;background:var(--binder-2);color:var(--muted);margin-top:18px}
+.status b{color:var(--ink)}
+.status.error{border-color:rgba(229,138,107,.5)}
+.mono{font-family:var(--mono);font-variant-numeric:tabular-nums}
+
+/* Balanza */
+.scale{margin-top:22px;border:1px solid var(--edge);border-radius:14px;background:var(--binder-2);padding:16px}
+.scale-row{display:grid;grid-template-columns:1fr auto 1fr;gap:14px;align-items:end}
+.tot small{display:block;color:var(--muted);font-size:12px;letter-spacing:.06em;text-transform:uppercase}
+.tot b{display:block;font:600 28px/1.1 var(--mono);margin-top:4px;font-variant-numeric:tabular-nums}
+.tot.recv b{color:var(--recv)} .tot.give{text-align:right} .tot.give b{color:var(--gold)}
+.diff{text-align:center;min-width:180px}
+.diff b{display:block;font:600 20px/1.2 var(--mono)}
+.diff span{display:block;color:var(--muted);font-size:12.5px}
+.diff.ok b{color:var(--good)} .diff.off b{color:var(--bad)}
+.beam{display:flex;height:10px;border-radius:999px;overflow:hidden;margin-top:14px;background:var(--pocket)}
+.beam i{display:block;height:100%;transition:width .25s}
+.beam .r{background:var(--recv)} .beam .g{background:var(--gold)}
+
+.bar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin:16px 0 0}
+
+/* Sugerencias */
+.sugg{margin-top:14px;border:1px solid var(--edge);border-radius:12px;background:var(--binder-2);padding:14px}
+.sugg h3{margin:0 0 4px;font:700 15px var(--body)}
+.combos{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-top:10px}
+.combo{background:var(--pocket);border:1px solid var(--edge);border-radius:10px;padding:10px;display:flex;flex-direction:column;gap:8px}
+.combo .pics{display:flex;gap:6px}
+.combo .pics img{width:44px;border-radius:3px}
+.combo ul{margin:0;padding:0;list-style:none;font-size:13px}
+.combo li{display:flex;justify-content:space-between;gap:8px}
+.combo li span:first-child{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.combo .res{color:var(--muted);font-size:12.5px}
+.combo .res b{color:var(--ink)}
+
+/* Columnas */
+.cols{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;margin-top:22px}
+.col{border:1px solid var(--edge);border-radius:14px;background:var(--binder-2);padding:14px;min-width:0}
+.col-head{display:flex;justify-content:space-between;align-items:baseline;gap:10px;margin-bottom:10px}
+.col[data-side="recibo"] h2{color:var(--recv)} .col[data-side="doy"] h2{color:var(--gold)}
+.sel{list-style:none;margin:0 0 12px;padding:0;display:flex;flex-direction:column;gap:6px}
+.sel .empty{color:var(--faint);font-size:13px;border:1px dashed var(--edge);border-radius:10px;padding:14px;text-align:center}
+.item{display:grid;grid-template-columns:40px minmax(0,1fr) auto;gap:10px;align-items:center;background:var(--pocket);border:1px solid var(--edge);border-radius:10px;padding:6px 8px}
+.item img{width:40px;border-radius:3px;display:block}
+.item .name{font-weight:700;line-height:1.2}
+.item .sub{color:var(--faint);font-size:12px}
+.item .ctl{display:flex;align-items:center;gap:6px}
+.item input{width:74px;background:var(--binder);color:var(--ink);border:1px solid var(--edge);border-radius:6px;padding:5px 6px;font:13px var(--mono);text-align:right}
+.item input.edited{border-color:var(--gold)}
+.qty{display:inline-flex;align-items:center;border:1px solid var(--edge);border-radius:6px;overflow:hidden}
+.qty button{background:var(--binder);color:var(--ink);border:0;width:24px;height:28px;cursor:pointer;font:700 14px var(--body)}
+.qty button:disabled{opacity:.35;cursor:default}
+.qty span{min-width:22px;text-align:center;font:13px var(--mono)}
+.x{background:none;border:0;color:var(--faint);cursor:pointer;font-size:18px;line-height:1;padding:2px 4px}
+.x:hover{color:var(--bad)}
+.search{width:100%;background:var(--pocket);color:var(--ink);border:1px solid var(--edge);border-radius:8px;padding:9px 11px;font:14px var(--body)}
+.pick{margin-top:8px;max-height:420px;overflow-y:auto;display:flex;flex-direction:column;gap:4px;padding-right:2px}
+.opt{display:grid;grid-template-columns:34px minmax(0,1fr) auto;gap:10px;align-items:center;padding:5px 6px;border-radius:8px;cursor:pointer;border:1px solid transparent;background:none;color:inherit;text-align:left;font:inherit;width:100%}
+.opt:hover{background:var(--pocket);border-color:var(--edge)}
+.opt:disabled{opacity:.4;cursor:default}
+.opt img{width:34px;border-radius:3px;display:block}
+.opt .name{font-weight:600;font-size:13.5px;line-height:1.2}
+.opt .sub{color:var(--faint);font-size:11.5px}
+.opt .val{font:13px var(--mono);text-align:right;white-space:nowrap}
+.opt .val small{display:block;color:var(--faint);font:11px var(--body)}
+.tag{display:inline-block;font:700 10.5px var(--body);letter-spacing:.04em;padding:1px 6px;border-radius:999px;color:#10202a;background:var(--recv);margin-left:6px;vertical-align:1px}
+.tag.falta{background:var(--good)} .tag.tengo{background:transparent;color:var(--muted);border:1px solid var(--edge)}
+.toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:var(--ink);color:#10202a;font-weight:700;padding:10px 14px;border-radius:8px;font-size:13px}
+@media (max-width:860px){ .cols{grid-template-columns:1fr} .combos{grid-template-columns:1fr} }
+@media (max-width:560px){ .scale-row{grid-template-columns:1fr 1fr} .diff{grid-column:1/-1;order:3} .tot b{font-size:22px} }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top"><span class="eyebrow">Uso interno · no enlazada desde la web</span><a href="./">← Volver a la carpeta</a></div>
+  <h1>Intercambio</h1>
+  <p class="lead">Elige lo que <strong>recibes</strong> (de tus cartas deseadas) y lo que <strong>das</strong> (de tu stock). Cada carta vale su <strong>suelo en español NM</strong>; puedes cambiar cualquier valor a mano.</p>
+
+  <div class="status" id="status">Cargando datos…</div>
+
+  <div class="scale" id="scale" hidden>
+    <div class="scale-row">
+      <div class="tot recv"><small>Recibo</small><b id="t-r">0,00 €</b></div>
+      <div class="diff" id="diff"><b>—</b><span></span></div>
+      <div class="tot give"><small>Doy</small><b id="t-d">0,00 €</b></div>
+    </div>
+    <div class="beam" aria-hidden="true"><i class="r" id="beam-r" style="width:50%"></i><i class="g" id="beam-g" style="width:50%"></i></div>
+    <div class="bar">
+      <button class="btn primary" id="cuadrar" type="button">Cuadrar</button>
+      <button class="btn" id="pdf" type="button">Descargar propuesta en PDF</button>
+      <button class="btn" id="clear" type="button">Vaciar</button>
+    </div>
+  </div>
+
+  <div class="sugg" id="sugg" hidden></div>
+
+  <div class="cols" id="cols" hidden>
+    <section class="col" data-side="recibo">
+      <div class="col-head"><h2>Recibo</h2><span class="note" id="n-recibo"></span></div>
+      <ul class="sel" id="sel-recibo"></ul>
+      <input class="search" type="search" id="q-recibo" placeholder="Buscar en mis deseadas…" autocomplete="off">
+      <div class="pick" id="pick-recibo"></div>
+    </section>
+    <section class="col" data-side="doy">
+      <div class="col-head"><h2>Doy</h2><span class="note" id="n-doy"></span></div>
+      <ul class="sel" id="sel-doy"></ul>
+      <input class="search" type="search" id="q-doy" placeholder="Buscar en mi stock (nombre, número, colección)…" autocomplete="off">
+      <div class="pick" id="pick-doy"></div>
+    </section>
+  </div>
+  <p class="note" id="foot"></p>
+</div>
+<div class="toast" id="toast" hidden></div>
+
+<script>
+/* Datos: ITEMS[key] = {key, side, name, numLabel, set, url, img, floor, date, avail, price, wanted} */
+const ITEMS = {};
+const SIDES = ['recibo', 'doy'];
+let sel = {recibo: [], doy: []};   // [{key, qty}]
+let vals = {};                      // valores cambiados a mano: key -> €
+const BULK = 1;                     // por debajo de 1 € cuenta como bulk
+
+const pctTxt = p => Math.abs(p).toLocaleString('es-ES',{maximumFractionDigits: Math.abs(p) < 10 ? 1 : 0}) + ' %';
+const eur = n => n.toLocaleString('es-ES',{minimumFractionDigits:2,maximumFractionDigits:2}) + ' €';
+const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const num = s => { const v = parseFloat(String(s).trim().replace(',', '.')); return isNaN(v) ? null : v; };
+const norm = s => String(s).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+function toast(m){ const t=document.getElementById('toast'); t.textContent=m; t.hidden=false; clearTimeout(toast.t); toast.t=setTimeout(()=>t.hidden=true,2200); }
+function parseCsv(text){ return text.split(/\r?\n/).slice(1).map(l => l.split(';')).filter(p => p.length >= 2 && p[0].trim() !== ''); }
+
+const baseVal = it => it.floor ?? (it.side === 'doy' ? it.price : null) ?? 0;
+const val = key => vals[key] ?? baseVal(ITEMS[key]);
+const selQty = (side, key) => (sel[side].find(s => s.key === key) || {}).qty || 0;
+const left = key => ITEMS[key].side === 'doy' ? ITEMS[key].avail - selQty('doy', key) : Infinity;
+const total = side => sel[side].reduce((a, s) => a + val(s.key) * s.qty, 0);
+const label = it => [it.numLabel, it.set].filter(Boolean).join(' · ');
+const marks = it => it.side !== 'recibo' ? '' : (it.wanted ? '<span class="tag">Buscada</span>' : '') + (it.have ? '<span class="tag tengo">Ya tengo</span>' : '<span class="tag falta">Me falta</span>');
+
+function save(){ try { localStorage.setItem('intercambio-v1', JSON.stringify({sel, vals})); } catch(e){} }
+function restore(){
+  try {
+    const s = JSON.parse(localStorage.getItem('intercambio-v1') || 'null'); if (!s) return;
+    SIDES.forEach(side => sel[side] = (s.sel?.[side] || []).filter(x => ITEMS[x.key] && ITEMS[x.key].side === side));
+    sel.doy.forEach(x => x.qty = Math.min(x.qty, ITEMS[x.key].avail));
+    sel.doy = sel.doy.filter(x => x.qty > 0);
+    vals = Object.fromEntries(Object.entries(s.vals || {}).filter(([k]) => ITEMS[k]));
+  } catch(e){}
+}
+
+async function load(){
+  const st = document.getElementById('status');
+  let data;
+  try { const r = await fetch('cartas.json', {cache:'no-store'}); data = await r.json(); }
+  catch(e){ st.classList.add('error'); st.innerHTML = '<b>No se pudo cargar cartas.json.</b>'; return; }
+  const stock = new Map(), floors = new Map();
+  try { const r = await fetch('stock.csv', {cache:'no-store'}); if (r.ok) parseCsv(await r.text()).forEach(p => stock.set(p[0].trim(), {price:num(p[2]), qty:parseInt(p[3],10)})); } catch(e){}
+  try { const r = await fetch('suelo.csv', {cache:'no-store'}); if (r.ok) parseCsv(await r.text()).forEach(p => floors.set(p[0].trim(), {min:num(p[1]), date:(p[3]||'').trim()})); } catch(e){}
+
+  const inStock = new Set();
+  (data.cartas || []).forEach(c => {
+    const s = stock.get(String(c.id)) || {}, f = floors.get(String(c.id)) || {};
+    const qty = Number.isFinite(s.qty) ? s.qty : c.qty;
+    if (!(qty > 0)) return;
+    inStock.add(c.url);
+    const key = 's' + c.id;
+    ITEMS[key] = {key, side:'doy', name:c.name, numLabel:c.numLabel === 'Código' ? '' : c.numLabel, set:c.set, url:c.url, img:c.img,
+      floor:f.min ?? null, date:f.date || '', avail:qty, price:s.price ?? c.price, tag:c.tag};
+  });
+  (data.deseadas || []).forEach(d => {
+    const key = 'd' + (d.url || d.num);
+    ITEMS[key] = {key, side:'recibo', name:d.nombre || 'Pikachu', numLabel:d.numLabel || d.num, set:d.set || '', url:d.url, img:d.img,
+      floor:d.suelo ?? null, date:d.fecha || '', avail:Infinity, wanted:!!d.buscada, have:inStock.has(d.url), tag:d.tag};
+  });
+  restore();
+  const nd = Object.values(ITEMS).filter(i => i.side === 'recibo').length, ns = Object.values(ITEMS).filter(i => i.side === 'doy').length;
+  st.innerHTML = `<b>${nd}</b> cartas deseadas y <b>${ns}</b> cartas en stock. Valores según el suelo de Cardmarket en español NM${dates(Object.values(ITEMS)) ? ' (consultado el <b>' + esc(dates(Object.values(ITEMS))) + '</b>)' : ''}.`;
+  ['scale','cols'].forEach(id => document.getElementById(id).hidden = false);
+  document.getElementById('foot').textContent = 'Si una carta de tu stock no tiene suelo, se usa tu precio de venta. Las deseadas sin suelo valen 0 hasta que les pongas valor a mano. Tu selección se guarda en este navegador.';
+  render();
+}
+
+function dates(list){
+  const ds = [...new Set(list.map(i => i.date).filter(Boolean))];
+  ds.sort((a,b) => a.split('/').reverse().join('').localeCompare(b.split('/').reverse().join('')));
+  return ds.length <= 1 ? (ds[0] || '') : ds.slice(0,-1).join(', ') + ' y ' + ds[ds.length-1];
+}
+
+/* ---------- Pintar ---------- */
+function render(){ renderScale(); SIDES.forEach(renderSel); SIDES.forEach(renderPick); save(); }
+
+function renderScale(){
+  const R = total('recibo'), D = total('doy'), diff = R - D;
+  document.getElementById('t-r').textContent = eur(R);
+  document.getElementById('t-d').textContent = eur(D);
+  const el = document.getElementById('diff');
+  const pct = D > 0 ? diff / D * 100 : null;
+  el.className = 'diff ' + (Math.abs(diff) < 0.005 ? 'ok' : 'off');
+  if (!R && !D) el.innerHTML = '<b>—</b><span>Elige cartas en las dos columnas</span>';
+  else if (Math.abs(diff) < 0.005) el.innerHTML = '<b>Equilibrado</b><span>Los dos lados valen lo mismo</span>';
+  else el.innerHTML = `<b>${diff > 0 ? '+' : '−'}${eur(Math.abs(diff))}${pct == null ? '' : ` (${diff > 0 ? '+' : '−'}${pctTxt(pct)})`}</b>
+    <span>${diff > 0 ? 'Recibo más de lo que doy' : 'Doy más de lo que recibo'}${pct == null ? '' : ' · % sobre lo que doy'}</span>`;
+  const sum = R + D || 1;
+  document.getElementById('beam-r').style.width = (R ? R / sum * 100 : 50) + '%';
+  document.getElementById('beam-g').style.width = (D ? D / sum * 100 : (R ? 0 : 50)) + '%';
+  document.getElementById('pdf').disabled = !R && !D;
+}
+
+function renderSel(side){
+  const ul = document.getElementById('sel-' + side), list = sel[side];
+  const copies = list.reduce((a, s) => a + s.qty, 0);
+  document.getElementById('n-' + side).textContent = copies ? `${copies} carta${copies > 1 ? 's' : ''} · ${eur(total(side))}` : '';
+  if (!list.length){ ul.innerHTML = `<li class="empty">${side === 'recibo' ? 'Añade abajo las cartas que te darían.' : 'Añade abajo las cartas que darías.'}</li>`; return; }
+  ul.innerHTML = list.map(s => {
+    const it = ITEMS[s.key], edited = s.key in vals;
+    return `<li class="item" data-key="${esc(s.key)}">
+      ${it.img ? `<img src="${esc(it.img)}" alt="">` : '<span></span>'}
+      <div><div class="name">${esc(it.name)}${marks(it)}</div>
+        <div class="sub">${esc(label(it))} · suelo ${it.floor == null ? '—' : eur(it.floor)}${edited ? ' · <a href="#" data-reset>volver al suelo</a>' : ''}</div></div>
+      <div class="ctl">
+        <span class="qty"><button type="button" data-q="-1" aria-label="Una menos">−</button><span>${s.qty}</span><button type="button" data-q="1" aria-label="Una más" ${left(s.key) <= 0 ? 'disabled' : ''}>+</button></span>
+        <input type="number" min="0" step="0.01" value="${val(s.key).toFixed(2)}" class="${edited ? 'edited' : ''}" aria-label="Valor de ${esc(it.name)} en euros" title="Valor por carta (€)">
+        <button class="x" type="button" data-del aria-label="Quitar">×</button>
+      </div></li>`;
+  }).join('');
+}
+
+function renderPick(side){
+  const q = norm(document.getElementById('q-' + side).value.trim());
+  let list = Object.values(ITEMS).filter(it => it.side === side);
+  if (side === 'recibo') list = list.filter(it => !selQty('recibo', it.key));
+  if (q) list = list.filter(it => norm(`${it.name} ${it.numLabel} ${it.set}`).includes(q));
+  list.sort((a, b) => (b.wanted|0) - (a.wanted|0) || (a.have|0) - (b.have|0) || a.name.localeCompare(b.name, 'es') || String(a.numLabel).localeCompare(String(b.numLabel), 'es', {numeric:true}));
+  document.getElementById('pick-' + side).innerHTML = list.length ? list.map(it => {
+    const l = left(it.key);
+    return `<button class="opt" type="button" data-add="${esc(it.key)}" ${l <= 0 ? 'disabled' : ''}>
+      ${it.img ? `<img src="${esc(it.img)}" alt="" loading="lazy">` : '<span></span>'}
+      <span><span class="name">${esc(it.name)}${marks(it)}</span><br><span class="sub">${esc(label(it))}</span></span>
+      <span class="val">${it.floor == null ? '<span class="note">sin suelo</span>' : eur(it.floor)}${side === 'doy' ? `<small>${l} de ${it.avail} disp.</small>` : ''}</span>
+    </button>`;
+  }).join('') : '<p class="note">Nada coincide con la búsqueda.</p>';
+}
+
+/* ---------- Acciones ---------- */
+function add(key, qty = 1){
+  const it = ITEMS[key], list = sel[it.side], s = list.find(x => x.key === key);
+  const n = Math.min(qty, left(key));
+  if (n <= 0) return;
+  if (s) s.qty += n; else list.push({key, qty:n});
+}
+
+SIDES.forEach(side => {
+  document.getElementById('q-' + side).addEventListener('input', () => renderPick(side));
+  document.getElementById('pick-' + side).addEventListener('click', e => {
+    const b = e.target.closest('[data-add]'); if (!b) return;
+    add(b.dataset.add); hideSugg(); render();
+  });
+  const ul = document.getElementById('sel-' + side);
+  ul.addEventListener('click', e => {
+    const li = e.target.closest('[data-key]'); if (!li) return;
+    const key = li.dataset.key, s = sel[side].find(x => x.key === key);
+    if (e.target.closest('[data-del]')) sel[side] = sel[side].filter(x => x.key !== key);
+    else if (e.target.closest('[data-q]')){ const d = +e.target.closest('[data-q]').dataset.q; if (d > 0) add(key); else if (--s.qty <= 0) sel[side] = sel[side].filter(x => x.key !== key); }
+    else if (e.target.closest('[data-reset]')){ e.preventDefault(); delete vals[key]; }
+    else return;
+    hideSugg(); render();
+  });
+  ul.addEventListener('change', e => {
+    const inp = e.target.closest('input'); if (!inp) return;
+    const key = inp.closest('[data-key]').dataset.key, v = num(inp.value);
+    if (v == null || v < 0) { render(); return; }
+    if (Math.abs(v - baseVal(ITEMS[key])) < 0.005) delete vals[key]; else vals[key] = Math.round(v * 100) / 100;
+    hideSugg(); render();
+  });
+});
+
+document.getElementById('clear').addEventListener('click', () => { sel = {recibo: [], doy: []}; vals = {}; hideSugg(); render(); });
+
+/* ---------- Cuadrar ---------- */
+function hideSugg(){ document.getElementById('sugg').hidden = true; }
+
+// Mejores combinaciones de 1 a 3 cartas distintas cuya suma se acerque a `gap`.
+// Orden: 1) lo más cerca de 0 (al céntimo); 2) empate: menos cartas «peores» (p.worse: deseada que ya tengo, o carta de mi stock que no es bulk);
+// 3) menos cartas. Devuelve 3 combinaciones distintas entre sí.
+function bestCombos(pool, gap){
+  pool = pool.filter(p => p.v > 0 && p.v <= gap + Math.max(0.5, gap * 0.5))
+             .sort((a, b) => Math.abs(gap - a.v) - Math.abs(gap - b.v)).slice(0, 160);
+  const K = 60, best = [];
+  const cmp = (a, b) => a.err - b.err || a.worse - b.worse || a.cards.length - b.cards.length;
+  const push = cards => {
+    const sum = cards.reduce((a, p) => a + p.v, 0);
+    const r = {cards, sum, err: Math.round(Math.abs(gap - sum) * 100), worse: cards.filter(p => p.worse).length};
+    if (best.length === K && cmp(r, best[K-1]) >= 0) return;
+    let i = best.length; while (i > 0 && cmp(r, best[i-1]) < 0) i--;
+    best.splice(i, 0, r); if (best.length > K) best.pop();
+  };
+  const n = pool.length;
+  for (let i = 0; i < n; i++){
+    push([pool[i]]);
+    for (let j = i + 1; j < n; j++){
+      if (pool[i].v + pool[j].v > gap * 2 + 1) continue;
+      push([pool[i], pool[j]]);
+      for (let k = j + 1; k < n; k++) push([pool[i], pool[j], pool[k]]);
+    }
+  }
+  const out = [];
+  for (const c of best){
+    const keys = new Set(c.cards.map(p => p.key));
+    if (out.every(o => o.cards.filter(p => keys.has(p.key)).length * 2 < Math.min(o.cards.length, c.cards.length) || (o.cards.length === 1 && c.cards.length === 1 && !keys.has(o.cards[0].key)))) out.push(c);
+    if (out.length === 3) break;
+  }
+  // Si no hay 3 bien distintas, completa con las siguientes mejores (sin repetir la misma combinación).
+  for (const c of best){
+    if (out.length === 3) break;
+    const k = c.cards.map(p => p.key).sort().join('|');
+    if (!out.some(o => o.cards.map(p => p.key).sort().join('|') === k)) out.push(c);
+  }
+  return out.sort((a, b) => a.err - b.err || a.worse - b.worse || a.cards.length - b.cards.length);
+}
+
+document.getElementById('cuadrar').addEventListener('click', () => {
+  const R = total('recibo'), D = total('doy'), gap = Math.abs(R - D), box = document.getElementById('sugg');
+  box.hidden = false;
+  if (gap < 0.005){ box.innerHTML = '<h3>Ya está equilibrado.</h3>'; return; }
+  const side = R < D ? 'recibo' : 'doy';
+  const pool = Object.values(ITEMS).filter(it => it.side === side && left(it.key) > 0 && !(side === 'recibo' && selQty('recibo', it.key)))
+                     .map(it => ({key: it.key, v: val(it.key), worse: side === 'recibo' ? it.have : val(it.key) >= BULK}));
+  const combos = bestCombos(pool, gap);
+  const title = side === 'recibo'
+    ? `Recibes ${eur(gap)} menos: cartas de tus deseadas que la otra persona podría añadir`
+    : `Das ${eur(gap)} menos: cartas de tu stock que podrías añadir`;
+  if (!combos.length){ box.innerHTML = `<h3>${title}</h3><p class="note">No hay cartas con valor que encajen.</p>`; return; }
+  box.innerHTML = `<h3>${title}</h3><p class="note">Las 3 combinaciones que más se acercan a 0${side === 'recibo' ? ' (si empatan, primero las que te faltan)' : ' (si empatan, primero bulk)'}. Pulsa «Añadir» para sumarla a la columna ${side === 'recibo' ? '«Recibo»' : '«Doy»'}.</p>
+    <div class="combos">${combos.map((c, i) => {
+      const after = side === 'recibo' ? (R + c.sum) - D : R - (D + c.sum);
+      return `<div class="combo">
+        <div class="pics">${c.cards.map(p => ITEMS[p.key].img ? `<img src="${esc(ITEMS[p.key].img)}" alt="">` : '').join('')}</div>
+        <ul>${c.cards.map(p => `<li><span>${esc(ITEMS[p.key].name)} <span class="note">${esc(ITEMS[p.key].numLabel)}${side === 'recibo' ? (ITEMS[p.key].have ? ' · ya tengo' : ' · me falta') : ''}</span></span><span class="mono">${eur(p.v)}</span></li>`).join('')}</ul>
+        <div class="res">Suma <b class="mono">${eur(c.sum)}</b> · diferencia después: <b class="mono">${Math.abs(after) < 0.005 ? '0,00 €' : (after > 0 ? '+' : '−') + eur(Math.abs(after))}</b></div>
+        <button class="btn sm ${i ? '' : 'primary'}" type="button" data-combo="${i}">Añadir</button></div>`;
+    }).join('')}</div>`;
+  box.onclick = e => { const b = e.target.closest('[data-combo]'); if (!b) return; combos[+b.dataset.combo].cards.forEach(p => add(p.key)); hideSugg(); render(); toast('Combinación añadida'); };
+});
+
+/* ---------- PDF ---------- */
+function saveBlob(blob, name){ const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(a.href),4000); }
+const stamp = () => { const d = new Date(), p = n => String(n).padStart(2,'0'); return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}_${p(d.getHours())}-${p(d.getMinutes())}`; };
+function loadScript(src){ return new Promise((res,rej)=>{ const s=document.createElement('script'); s.src=src; s.onload=res; s.onerror=()=>rej(new Error('script')); document.head.appendChild(s); }); }
+function loadImg(src){ return new Promise(res => { const i=new Image(); i.onload=()=>res(i); i.onerror=()=>res(null); i.src=src; }); }
+async function thumb(src){ if (!src) return null; const img = await loadImg(src); if (!img) return null;
+  const w=200, h=Math.round(w*img.naturalHeight/img.naturalWidth); const cv=document.createElement('canvas'); cv.width=w; cv.height=h; const x=cv.getContext('2d'); x.fillStyle='#fff'; x.fillRect(0,0,w,h); x.drawImage(img,0,0,w,h); try{ return cv.toDataURL('image/jpeg',.82);}catch(e){return null;} }
+const pdfText = s => String(s).replace('♀','(F)').replace(/[^\x00-\xFF€…−]/g,'').replace('−','-');
+async function busy(btn, text, job){ const l=btn.innerHTML; btn.disabled=true; btn.textContent=text; try{ await job(); }catch(e){ console.error(e); toast('No se pudo generar el archivo. Revisa la conexión.'); } finally { btn.disabled=false; btn.innerHTML=l; } }
+const today = () => new Date().toLocaleDateString('es-ES',{day:'2-digit',month:'2-digit',year:'numeric'});
+
+document.getElementById('pdf').addEventListener('click', ev => busy(ev.currentTarget, 'Generando PDF…', async () => {
+  if (!window.jspdf) await loadScript('https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js');
+  const cols = {};
+  for (const side of SIDES) cols[side] = await Promise.all(sel[side].map(async s => ({...ITEMS[s.key], qty:s.qty, v:val(s.key), edited: s.key in vals, pic: await thumb(ITEMS[s.key].img)})));
+  const R = total('recibo'), D = total('doy'), diff = R - D;
+  const used = [...cols.recibo, ...cols.doy];
+  const doc = new window.jspdf.jsPDF({unit:'mm', format:'a4', orientation:'portrait'});
+  const W=210, H=297, M=12, GAP=8, CW=(W-2*M-GAP)/2, ROW=22;
+  const ink=[16,32,42], muted=[104,124,130], gold=[176,124,20], recv=[40,110,150], line=[222,226,228], bad=[196,86,52], good=[46,140,82];
+  const X = {recibo:M, doy:M+CW+GAP};
+  const colColor = {recibo:recv, doy:gold}, colTitle = {recibo:'Recibo', doy:'Doy'};
+  function heads(y){
+    SIDES.forEach(side => {
+      doc.setFillColor(...colColor[side]); doc.rect(X[side], y, CW, 8, 'F');
+      doc.setFont('helvetica','bold'); doc.setFontSize(10); doc.setTextColor(255,255,255);
+      doc.text(colTitle[side], X[side]+3, y+5.4);
+      doc.text(eur(side === 'recibo' ? R : D), X[side]+CW-3, y+5.4, {align:'right'});
+    });
+    return y+10;
+  }
+  let y = M;
+  doc.setFont('helvetica','bold'); doc.setFontSize(20); doc.setTextColor(...ink); doc.text('Propuesta de intercambio', M, y+8);
+  doc.setFont('helvetica','normal'); doc.setFontSize(9.5); doc.setTextColor(...muted);
+  doc.text(`Fecha: ${today()}`, M, y+14);
+  y = heads(y+20);
+  const rows = Math.max(cols.recibo.length, cols.doy.length);
+  for (let i = 0; i < rows; i++){
+    if (y+ROW > H-M-44){ doc.addPage(); y = heads(M); }
+    SIDES.forEach(side => {
+      const c = cols[side][i]; if (!c) return; const x = X[side];
+      if (c.pic) doc.addImage(c.pic, 'JPEG', x+1, y+1, 14, 19.6);
+      const tx = x+18, maxW = CW-18-24;
+      doc.setFont('helvetica','bold'); doc.setFontSize(10); doc.setTextColor(...ink);
+      doc.text(doc.splitTextToSize(pdfText(c.name), maxW)[0], tx, y+7);
+      doc.setFont('helvetica','normal'); doc.setFontSize(8.3); doc.setTextColor(...muted);
+      doc.text(doc.splitTextToSize(pdfText(label(c)), maxW)[0], tx, y+12);
+      if (c.qty > 1) doc.text(`${c.qty} x ${eur(c.v)}`, tx, y+17);
+      doc.setFont('helvetica','bold'); doc.setFontSize(10); doc.setTextColor(...ink);
+      doc.text(eur(c.v*c.qty) + (c.edited ? ' *' : ''), x+CW-2, y+9, {align:'right'});
+      doc.setDrawColor(...line); doc.line(x, y+ROW-1, x+CW, y+ROW-1);
+    });
+    y += ROW;
+  }
+  if (y > H-M-44){ doc.addPage(); y = M; }
+  y += 4;
+  doc.setDrawColor(...ink); doc.setLineWidth(0.4); doc.line(M, y, W-M, y); doc.setLineWidth(0.2);
+  doc.setFont('helvetica','bold'); doc.setFontSize(12);
+  doc.setTextColor(...recv); doc.text(`Recibo: ${eur(R)}`, M, y+8);
+  doc.setTextColor(...gold); doc.text(`Doy: ${eur(D)}`, M+CW+GAP, y+8);
+  const pct = D > 0 ? diff / D * 100 : null;
+  doc.setTextColor(...(Math.abs(diff) < 0.005 ? good : bad));
+  doc.text(Math.abs(diff) < 0.005 ? 'Diferencia: 0,00 € (equilibrado)'
+    : `Diferencia: ${diff > 0 ? '+' : '-'}${eur(Math.abs(diff))}${pct == null ? '' : ` (${diff > 0 ? '+' : '-'}${pctTxt(pct)})`} · ${diff > 0 ? 'recibo más de lo que doy' : 'doy más de lo que recibo'}`, M, y+16);
+  doc.setFont('helvetica','normal'); doc.setFontSize(8.5); doc.setTextColor(...muted);
+  doc.text(`Valores según el precio más bajo en Cardmarket (español, NM) a fecha ${pdfText(dates(used) || today())}.`, M, y+24);
+  if (used.some(c => c.edited)) doc.text('* Valor acordado a mano.', M, y+29);
+  const pages = doc.getNumberOfPages();
+  for (let p=1;p<=pages;p++){ doc.setPage(p); doc.setFontSize(7.5); doc.setTextColor(...muted); doc.text(`Página ${p} de ${pages}`, W-M, H-6, {align:'right'}); }
+  saveBlob(doc.output('blob'), `propuesta-intercambio_${stamp()}.pdf`); toast('PDF descargado');
+}));
+
+load();
+</script>
+</body>
+</html>
