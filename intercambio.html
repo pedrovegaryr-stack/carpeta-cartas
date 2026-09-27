@@ -452,7 +452,7 @@ function pdfOptions(){
           opts: sg.combos.map(c => ({keys: c.cards.map(p => p.key), sum: c.sum, chosen: false}))};
 }
 
-const YO = 'Jose', VENDEDOR = 'BePokemon';   // cómo me llamo en el PDF que lee la otra persona
+const YO = 'BePokemon', VENDEDOR = 'BePokemon';   // cómo me llamo en el PDF que lee la otra persona
 
 document.getElementById('pdf').addEventListener('click', ev => busy(ev.currentTarget, 'Generando PDF…', async () => {
   if (!window.jspdf) await loadScript('https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js');
@@ -555,9 +555,8 @@ document.getElementById('pdf').addEventListener('click', ev => busy(ev.currentTa
     doc.setFont('helvetica','normal'); doc.setFontSize(9.5); doc.setTextColor(...muted);
     const intro = !op.side ? 'La propuesta está igualada: no hace falta añadir nada.'
       : !op.opts.length ? `${need(op.before)} No se han encontrado cartas que encajen.`
-      : op.hasChosen ? `Antes de la opción elegida: ${need(op.before).replace(/^P/, 'p')}` : need(op.before);
-    doc.text(pdfText(intro), M, y + 10.5);
-    y += 14;
+      : op.hasChosen ? `Antes de la opción elegida: ${need(op.before).replace(/^P/, 'p')}` : '';   // la frase normal ya va bajo la franja
+    if (intro){ doc.text(pdfText(intro), M, y + 10.5); y += 14; } else y += 9;
     op.opts.forEach((o, i) => {
       const bx = M + i * (OP.w + OP.gap);
       doc.setDrawColor(...(o.chosen ? good : line)); doc.setLineWidth(o.chosen ? 0.7 : 0.3);
@@ -572,10 +571,12 @@ document.getElementById('pdf').addEventListener('click', ev => busy(ev.currentTa
       o.keys.forEach((k, j) => card({...ITEMS[k], qty:1, v:val(k), edited: k in vals}, bx + (OP.w - rowW)/2 + j*(OP.cw+3), y + 14, OP.cw, OP.ih, pics[k], true));
       const r2 = op.baseR + (op.side === 'recibo' ? o.sum : 0), d2 = op.baseD + (op.side === 'doy' ? o.sum : 0);
       const yy = y + 14 + OP.ih + 11;
-      doc.setFont('helvetica','normal'); doc.setFontSize(8); doc.setTextColor(...ink);
-      doc.text(fit(`Quedaría: ${other} ${eur(r2)} · ${YO} ${eur(d2)}`, OP.w - 6), bx + 3, yy);
+      // Dos líneas: totales con esta opción y el resultado; la letra se reduce si no cabe en el recuadro.
+      const shrink = (t, max) => { let f = max; doc.setFontSize(f); while (f > 6 && doc.getTextWidth(t) > OP.w - 6) doc.setFontSize(f -= 0.25); return t; };
+      doc.setFont('helvetica','normal'); doc.setTextColor(...ink);
+      doc.text(shrink(pdfText(`${other} ${eur(r2)} · ${YO} ${eur(d2)}`), 8), bx + 3, yy);
       doc.setFont('helvetica','bold'); doc.setTextColor(...(Math.abs(r2 - d2) < 0.005 ? good : muted));
-      doc.text(fit(Math.abs(r2 - d2) < 0.005 ? 'Igualado' : need(r2 - d2).replace('Para igualar, faltarían', 'Faltarían'), OP.w - 6), bx + 3, yy + 4.5);
+      doc.text(shrink(pdfText(Math.abs(r2 - d2) < 0.005 ? 'Quedaría igualado' : need(r2 - d2).replace('Para igualar, faltarían', 'Faltarían')), 8), bx + 3, yy + 4.5);
     });
     y += optBoxH;
   }
