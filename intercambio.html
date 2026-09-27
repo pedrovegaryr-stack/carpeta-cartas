@@ -101,6 +101,11 @@ h2{font:800 22px/1.1 var(--display);margin:0}
 .opt .val small{display:block;color:var(--faint);font:11px var(--body)}
 .tag{display:inline-block;font:700 10.5px var(--body);letter-spacing:.04em;padding:1px 6px;border-radius:999px;color:#10202a;background:var(--recv);margin-left:6px;vertical-align:1px}
 .tag.falta{background:var(--good)} .tag.tengo{background:transparent;color:var(--muted);border:1px solid var(--edge)}
+.lim{display:inline-flex;align-items:center;gap:6px;color:var(--muted);font-size:13px}
+.lim input{width:64px;background:var(--pocket);color:var(--ink);border:1px solid var(--edge);border-radius:6px;padding:6px 8px;font:13px var(--mono)}
+.who{display:flex;flex-direction:column;gap:4px;margin-bottom:12px}
+.who span{font:700 12px var(--body);color:var(--muted);letter-spacing:.04em}
+.who input{background:var(--pocket);color:var(--ink);border:1px solid var(--edge);border-radius:8px;padding:8px 11px;font:15px var(--body)}
 .toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:var(--ink);color:#10202a;font-weight:700;padding:10px 14px;border-radius:8px;font-size:13px}
 @media (max-width:860px){ .cols{grid-template-columns:1fr} .combos{grid-template-columns:1fr} }
 @media (max-width:560px){ .scale-row{grid-template-columns:1fr 1fr} .diff{grid-column:1/-1;order:3} .tot b{font-size:22px} }
@@ -116,13 +121,14 @@ h2{font:800 22px/1.1 var(--display);margin:0}
 
   <div class="scale" id="scale" hidden>
     <div class="scale-row">
-      <div class="tot recv"><small>Recibo</small><b id="t-r">0,00 €</b></div>
+      <div class="tot recv"><small id="l-r">Recibo</small><b id="t-r">0,00 €</b></div>
       <div class="diff" id="diff"><b>—</b><span></span></div>
-      <div class="tot give"><small>Doy</small><b id="t-d">0,00 €</b></div>
+      <div class="tot give"><small id="l-d">Doy</small><b id="t-d">0,00 €</b></div>
     </div>
     <div class="beam" aria-hidden="true"><i class="r" id="beam-r" style="width:50%"></i><i class="g" id="beam-g" style="width:50%"></i></div>
     <div class="bar">
       <button class="btn primary" id="cuadrar" type="button">Cuadrar</button>
+      <label class="lim" for="lim">usando mis cartas de hasta <input type="number" id="lim" min="0" step="0.5" value="2"> €</label>
       <button class="btn" id="pdf" type="button">Descargar propuesta en PDF</button>
       <button class="btn" id="clear" type="button">Vaciar</button>
     </div>
@@ -132,13 +138,14 @@ h2{font:800 22px/1.1 var(--display);margin:0}
 
   <div class="cols" id="cols" hidden>
     <section class="col" data-side="recibo">
-      <div class="col-head"><h2>Recibo</h2><span class="note" id="n-recibo"></span></div>
+      <label class="who" for="nombre"><span>Nombre de la otra persona</span><input type="text" id="nombre" maxlength="40" placeholder="Ej.: Ana" autocomplete="off"></label>
+      <div class="col-head"><h2 id="h-recibo">Recibo</h2><span class="note" id="n-recibo"></span></div>
       <ul class="sel" id="sel-recibo"></ul>
       <input class="search" type="search" id="q-recibo" placeholder="Buscar en mis deseadas…" autocomplete="off">
       <div class="pick" id="pick-recibo"></div>
     </section>
     <section class="col" data-side="doy">
-      <div class="col-head"><h2>Doy</h2><span class="note" id="n-doy"></span></div>
+      <div class="col-head"><h2 id="h-doy">Doy</h2><span class="note" id="n-doy"></span></div>
       <ul class="sel" id="sel-doy"></ul>
       <input class="search" type="search" id="q-doy" placeholder="Buscar en mi stock (nombre, número, colección)…" autocomplete="off">
       <div class="pick" id="pick-doy"></div>
@@ -154,6 +161,9 @@ const ITEMS = {};
 const SIDES = ['recibo', 'doy'];
 let sel = {recibo: [], doy: []};   // [{key, qty}]
 let vals = {};                      // valores cambiados a mano: key -> €
+// nombre de la otra persona, límite de «Cuadrar» para mis cartas (0 = sin límite)
+// y la última combinación añadida con «Cuadrar» ({side, chosen:[keys], alts:[[keys]…]}) para el PDF.
+let meta = {nombre: '', limite: 2, elegida: null};
 const BULK = 1;                     // por debajo de 1 € cuenta como bulk
 
 const pctTxt = p => Math.abs(p).toLocaleString('es-ES',{maximumFractionDigits: Math.abs(p) < 10 ? 1 : 0}) + ' %';
@@ -172,7 +182,11 @@ const total = side => sel[side].reduce((a, s) => a + val(s.key) * s.qty, 0);
 const label = it => [it.numLabel, it.set].filter(Boolean).join(' · ');
 const marks = it => it.side !== 'recibo' ? '' : (it.wanted ? '<span class="tag">Buscada</span>' : '') + (it.have ? '<span class="tag tengo">Ya tengo</span>' : '<span class="tag falta">Me falta</span>');
 
-function save(){ try { localStorage.setItem('intercambio-v1', JSON.stringify({sel, vals})); } catch(e){} }
+const who = () => meta.nombre.trim();
+const colName = side => side === 'recibo' ? (who() ? `Recibo de ${who()}` : 'Recibo') : (who() ? `Doy a ${who()}` : 'Doy');
+const slug = s => s.normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^A-Za-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+
+function save(){ try { localStorage.setItem('intercambio-v1', JSON.stringify({sel, vals, meta})); } catch(e){} }
 function restore(){
   try {
     const s = JSON.parse(localStorage.getItem('intercambio-v1') || 'null'); if (!s) return;
@@ -180,7 +194,15 @@ function restore(){
     sel.doy.forEach(x => x.qty = Math.min(x.qty, ITEMS[x.key].avail));
     sel.doy = sel.doy.filter(x => x.qty > 0);
     vals = Object.fromEntries(Object.entries(s.vals || {}).filter(([k]) => ITEMS[k]));
+    if (s.meta){
+      meta.nombre = String(s.meta.nombre || '');
+      if (Number.isFinite(s.meta.limite)) meta.limite = s.meta.limite;
+      const e = s.meta.elegida;
+      meta.elegida = e && [e.chosen, ...e.alts].flat().every(k => ITEMS[k]) ? e : null;
+    }
   } catch(e){}
+  document.getElementById('nombre').value = meta.nombre;
+  document.getElementById('lim').value = meta.limite || '';
 }
 
 async function load(){
@@ -226,6 +248,8 @@ function render(){ renderScale(); SIDES.forEach(renderSel); SIDES.forEach(render
 
 function renderScale(){
   const R = total('recibo'), D = total('doy'), diff = R - D;
+  document.getElementById('l-r').textContent = document.getElementById('h-recibo').textContent = colName('recibo');
+  document.getElementById('l-d').textContent = document.getElementById('h-doy').textContent = colName('doy');
   document.getElementById('t-r').textContent = eur(R);
   document.getElementById('t-d').textContent = eur(D);
   const el = document.getElementById('diff');
@@ -309,7 +333,9 @@ SIDES.forEach(side => {
   });
 });
 
-document.getElementById('clear').addEventListener('click', () => { sel = {recibo: [], doy: []}; vals = {}; hideSugg(); render(); });
+document.getElementById('clear').addEventListener('click', () => { sel = {recibo: [], doy: []}; vals = {}; meta.elegida = null; hideSugg(); render(); });
+document.getElementById('nombre').addEventListener('input', e => { meta.nombre = e.target.value; renderScale(); save(); });
+document.getElementById('lim').addEventListener('input', e => { const v = num(e.target.value); meta.limite = v != null && v > 0 ? v : 0; hideSugg(); save(); });
 
 /* ---------- Cuadrar ---------- */
 function hideSugg(){ document.getElementById('sugg').hidden = true; }
@@ -338,8 +364,10 @@ function bestCombos(pool, gap){
       for (let k = j + 1; k < n; k++) push([pool[i], pool[j], pool[k]]);
     }
   }
-  const out = [];
+  // Primero combinaciones distintas entre sí, pero solo si están casi igual de cerca de 0 que la mejor.
+  const out = [], tol = best.length ? best[0].err + Math.max(10, Math.round(gap * 5)) : 0;
   for (const c of best){
+    if (c.err > tol) break;
     const keys = new Set(c.cards.map(p => p.key));
     if (out.every(o => o.cards.filter(p => keys.has(p.key)).length * 2 < Math.min(o.cards.length, c.cards.length) || (o.cards.length === 1 && c.cards.length === 1 && !keys.has(o.cards[0].key)))) out.push(c);
     if (out.length === 3) break;
@@ -353,19 +381,26 @@ function bestCombos(pool, gap){
   return out.sort((a, b) => a.err - b.err || a.worse - b.worse || a.cards.length - b.cards.length);
 }
 
-document.getElementById('cuadrar').addEventListener('click', () => {
-  const R = total('recibo'), D = total('doy'), gap = Math.abs(R - D), box = document.getElementById('sugg');
-  box.hidden = false;
-  if (gap < 0.005){ box.innerHTML = '<h3>Ya está equilibrado.</h3>'; return; }
+// Combinaciones para cuadrar la selección actual. side = columna a la que se añadirían.
+function suggest(){
+  const R = total('recibo'), D = total('doy'), gap = Math.abs(R - D);
+  if (gap < 0.005) return {R, D, gap, side: null, combos: []};
   const side = R < D ? 'recibo' : 'doy';
-  const pool = Object.values(ITEMS).filter(it => it.side === side && left(it.key) > 0 && !(side === 'recibo' && selQty('recibo', it.key)))
+  const lim = side === 'doy' && meta.limite > 0 ? meta.limite : Infinity;
+  const pool = Object.values(ITEMS).filter(it => it.side === side && left(it.key) > 0 && !(side === 'recibo' && selQty('recibo', it.key)) && val(it.key) <= lim + 1e-9)
                      .map(it => ({key: it.key, v: val(it.key), worse: side === 'recibo' ? it.have : val(it.key) >= BULK}));
-  const combos = bestCombos(pool, gap);
+  return {R, D, gap, side, lim, combos: bestCombos(pool, gap)};
+}
+
+document.getElementById('cuadrar').addEventListener('click', () => {
+  const {R, D, gap, side, lim, combos} = suggest(), box = document.getElementById('sugg');
+  box.hidden = false;
+  if (!side){ box.innerHTML = '<h3>Ya está equilibrado.</h3>'; return; }
   const title = side === 'recibo'
-    ? `Recibes ${eur(gap)} menos: cartas de tus deseadas que la otra persona podría añadir`
-    : `Das ${eur(gap)} menos: cartas de tu stock que podrías añadir`;
-  if (!combos.length){ box.innerHTML = `<h3>${title}</h3><p class="note">No hay cartas con valor que encajen.</p>`; return; }
-  box.innerHTML = `<h3>${title}</h3><p class="note">Las 3 combinaciones que más se acercan a 0${side === 'recibo' ? ' (si empatan, primero las que te faltan)' : ' (si empatan, primero bulk)'}. Pulsa «Añadir» para sumarla a la columna ${side === 'recibo' ? '«Recibo»' : '«Doy»'}.</p>
+    ? `Recibes ${eur(gap)} menos: cartas de tus deseadas que ${who() || 'la otra persona'} podría añadir`
+    : `Das ${eur(gap)} menos: cartas de tu stock que podrías añadir${lim < Infinity ? ` (de hasta ${eur(lim)})` : ''}`;
+  if (!combos.length){ box.innerHTML = `<h3>${title}</h3><p class="note">No hay cartas con valor que encajen${lim < Infinity ? '. Prueba a subir el límite de «Cuadrar usando mis cartas de hasta…»' : ''}.</p>`; return; }
+  box.innerHTML = `<h3>${title}</h3><p class="note">Las 3 combinaciones que más se acercan a 0${side === 'recibo' ? ' (si empatan, primero las que te faltan)' : ' (si empatan, primero bulk)'}. Pulsa «Añadir» para sumarla a la columna «${esc(colName(side))}».</p>
     <div class="combos">${combos.map((c, i) => {
       const after = side === 'recibo' ? (R + c.sum) - D : R - (D + c.sum);
       return `<div class="combo">
@@ -374,7 +409,12 @@ document.getElementById('cuadrar').addEventListener('click', () => {
         <div class="res">Suma <b class="mono">${eur(c.sum)}</b> · diferencia después: <b class="mono">${Math.abs(after) < 0.005 ? '0,00 €' : (after > 0 ? '+' : '−') + eur(Math.abs(after))}</b></div>
         <button class="btn sm ${i ? '' : 'primary'}" type="button" data-combo="${i}">Añadir</button></div>`;
     }).join('')}</div>`;
-  box.onclick = e => { const b = e.target.closest('[data-combo]'); if (!b) return; combos[+b.dataset.combo].cards.forEach(p => add(p.key)); hideSugg(); render(); toast('Combinación añadida'); };
+  box.onclick = e => {
+    const b = e.target.closest('[data-combo]'); if (!b) return;
+    const keys = c => c.cards.map(p => p.key), chosen = combos[+b.dataset.combo];
+    meta.elegida = {side, chosen: keys(chosen), alts: combos.filter(c => c !== chosen).map(keys)};
+    chosen.cards.forEach(p => add(p.key)); hideSugg(); render(); toast('Combinación añadida');
+  };
 });
 
 /* ---------- PDF ---------- */
@@ -388,6 +428,24 @@ const pdfText = s => String(s).replace('♀','(F)').replace(/[^\x00-\xFF€…�
 async function busy(btn, text, job){ const l=btn.innerHTML; btn.disabled=true; btn.textContent=text; try{ await job(); }catch(e){ console.error(e); toast('No se pudo generar el archivo. Revisa la conexión.'); } finally { btn.disabled=false; btn.innerHTML=l; } }
 const today = () => new Date().toLocaleDateString('es-ES',{day:'2-digit',month:'2-digit',year:'numeric'});
 
+// Opciones para la sección «Opciones para cuadrar» del PDF.
+// Si la combinación añadida con «Cuadrar» sigue en la propuesta, sale como «Opción elegida» y las otras como alternativas,
+// todas calculadas sobre la propuesta sin esa combinación. Si no, las 3 combinaciones que da «Cuadrar» ahora mismo.
+function pdfOptions(){
+  const R = total('recibo'), D = total('doy'), sumOf = keys => keys.reduce((a, k) => a + val(k), 0);
+  const e = meta.elegida;
+  if (e && e.chosen.every(k => selQty(e.side, k) > 0)){
+    const s = sumOf(e.chosen);
+    const baseR = R - (e.side === 'recibo' ? s : 0), baseD = D - (e.side === 'doy' ? s : 0);
+    const opts = [{keys: e.chosen, sum: s, chosen: true}, ...e.alts.map(keys => ({keys, sum: sumOf(keys), chosen: false}))];
+    return {side: e.side, gap: Math.abs(baseR - baseD), baseR, baseD, hasChosen: true, opts};
+  }
+  const sg = suggest();
+  if (!R && !D) return null;
+  return {side: sg.side, gap: sg.gap, baseR: R, baseD: D, hasChosen: false,
+          opts: sg.combos.map(c => ({keys: c.cards.map(p => p.key), sum: c.sum, chosen: false}))};
+}
+
 document.getElementById('pdf').addEventListener('click', ev => busy(ev.currentTarget, 'Generando PDF…', async () => {
   if (!window.jspdf) await loadScript('https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js');
   const cols = {};
@@ -398,18 +456,18 @@ document.getElementById('pdf').addEventListener('click', ev => busy(ev.currentTa
   const W=210, H=297, M=12, GAP=8, CW=(W-2*M-GAP)/2, ROW=22;
   const ink=[16,32,42], muted=[104,124,130], gold=[176,124,20], recv=[40,110,150], line=[222,226,228], bad=[196,86,52], good=[46,140,82];
   const X = {recibo:M, doy:M+CW+GAP};
-  const colColor = {recibo:recv, doy:gold}, colTitle = {recibo:'Recibo', doy:'Doy'};
+  const colColor = {recibo:recv, doy:gold};
   function heads(y){
     SIDES.forEach(side => {
       doc.setFillColor(...colColor[side]); doc.rect(X[side], y, CW, 8, 'F');
       doc.setFont('helvetica','bold'); doc.setFontSize(10); doc.setTextColor(255,255,255);
-      doc.text(colTitle[side], X[side]+3, y+5.4);
+      doc.text(doc.splitTextToSize(pdfText(colName(side)), CW-28)[0], X[side]+3, y+5.4);
       doc.text(eur(side === 'recibo' ? R : D), X[side]+CW-3, y+5.4, {align:'right'});
     });
     return y+10;
   }
   let y = M;
-  doc.setFont('helvetica','bold'); doc.setFontSize(20); doc.setTextColor(...ink); doc.text('Propuesta de intercambio', M, y+8);
+  doc.setFont('helvetica','bold'); doc.setFontSize(20); doc.setTextColor(...ink); doc.text(doc.splitTextToSize(pdfText(who() ? `Propuesta de intercambio con ${who()}` : 'Propuesta de intercambio'), W-2*M)[0], M, y+8);
   doc.setFont('helvetica','normal'); doc.setFontSize(9.5); doc.setTextColor(...muted);
   doc.text(`Fecha: ${today()}`, M, y+14);
   y = heads(y+20);
@@ -435,8 +493,8 @@ document.getElementById('pdf').addEventListener('click', ev => busy(ev.currentTa
   y += 4;
   doc.setDrawColor(...ink); doc.setLineWidth(0.4); doc.line(M, y, W-M, y); doc.setLineWidth(0.2);
   doc.setFont('helvetica','bold'); doc.setFontSize(12);
-  doc.setTextColor(...recv); doc.text(`Recibo: ${eur(R)}`, M, y+8);
-  doc.setTextColor(...gold); doc.text(`Doy: ${eur(D)}`, M+CW+GAP, y+8);
+  doc.setTextColor(...recv); doc.text(pdfText(`${colName('recibo')}: ${eur(R)}`), M, y+8);
+  doc.setTextColor(...gold); doc.text(pdfText(`${colName('doy')}: ${eur(D)}`), M+CW+GAP, y+8);
   const pct = D > 0 ? diff / D * 100 : null;
   doc.setTextColor(...(Math.abs(diff) < 0.005 ? good : bad));
   doc.text(Math.abs(diff) < 0.005 ? 'Diferencia: 0,00 € (equilibrado)'
@@ -444,9 +502,55 @@ document.getElementById('pdf').addEventListener('click', ev => busy(ev.currentTa
   doc.setFont('helvetica','normal'); doc.setFontSize(8.5); doc.setTextColor(...muted);
   doc.text(`Valores según el precio más bajo en Cardmarket (español, NM) a fecha ${pdfText(dates(used) || today())}.`, M, y+24);
   if (used.some(c => c.edited)) doc.text('* Valor acordado a mano.', M, y+29);
+  y += used.some(c => c.edited) ? 38 : 33;
+
+  /* Opciones para cuadrar */
+  const op = pdfOptions();
+  if (op){
+    const other = who() || 'la otra persona', Other = who() || 'La otra persona';
+    const pics = {};
+    for (const o of op.opts) for (const k of o.keys) if (!(k in pics)) pics[k] = await thumb(ITEMS[k].img);
+    const ORow = 13;
+    if (y + 26 + (op.opts[0] ? op.opts[0].keys.length*ORow + 20 : 0) > H-M-8){ doc.addPage(); y = M; }
+    doc.setFont('helvetica','bold'); doc.setFontSize(13); doc.setTextColor(...ink); doc.text('Opciones para cuadrar', M, y+6);
+    doc.setFont('helvetica','normal'); doc.setFontSize(9.5); doc.setTextColor(...muted);
+    const gapTxt = eur(op.gap), whereTxt = op.side === 'recibo' ? `del lado de ${other}` : 'de mi lado';
+    doc.text(pdfText(!op.side ? 'La propuesta está equilibrada: no hace falta añadir nada.'
+      : op.hasChosen ? `Antes de cuadrar faltaban ${gapTxt} ${whereTxt}.` : `Faltan ${gapTxt} ${whereTxt}.`), M, y+12);
+    if (op.side && !op.opts.length) doc.text('No se han encontrado cartas que encajen.', M, y+17);
+    y += 17;
+    let alt = 0;
+    op.opts.forEach((o, i) => {
+      const h = 9 + o.keys.length*ORow + 10;
+      if (y + h > H-M-8){ doc.addPage(); y = M; }
+      const title = o.chosen ? 'Opción elegida' : op.hasChosen ? `Alternativa ${++alt}` : `Opción ${i+1}`;
+      doc.setDrawColor(...(o.chosen ? good : line)); doc.setLineWidth(o.chosen ? 0.6 : 0.3); doc.roundedRect(M, y, W-2*M, h-2, 2, 2); doc.setLineWidth(0.2);
+      doc.setFont('helvetica','bold'); doc.setFontSize(10.5); doc.setTextColor(...(o.chosen ? good : ink)); doc.text(title, M+4, y+6);
+      const tw = doc.getTextWidth(title);
+      doc.setFont('helvetica','normal'); doc.setFontSize(9); doc.setTextColor(...muted);
+      doc.text(pdfText(`· ${op.side === 'recibo' ? `${Other} pondría` : 'Yo pondría'} ${o.keys.length} carta${o.keys.length > 1 ? 's' : ''} (${eur(o.sum)})`), M+4+tw+2, y+6);
+      let yy = y + 9;
+      o.keys.forEach(k => {
+        const it = ITEMS[k];
+        if (pics[k]) doc.addImage(pics[k], 'JPEG', M+4, yy, 8, 11.2);
+        doc.setFont('helvetica','bold'); doc.setFontSize(9.5); doc.setTextColor(...ink); doc.text(pdfText(it.name), M+15, yy+4.5);
+        doc.setFont('helvetica','normal'); doc.setFontSize(8.3); doc.setTextColor(...muted); doc.text(pdfText(label(it)), M+15, yy+9);
+        doc.setFont('helvetica','bold'); doc.setFontSize(9.5); doc.setTextColor(...ink); doc.text(eur(val(k)), W-M-4, yy+6.5, {align:'right'});
+        yy += ORow;
+      });
+      const r2 = op.baseR + (op.side === 'recibo' ? o.sum : 0), d2 = op.baseD + (op.side === 'doy' ? o.sum : 0), f2 = r2 - d2;
+      doc.setFont('helvetica','normal'); doc.setFontSize(8.8); doc.setTextColor(...ink);
+      doc.text(pdfText(`Quedaría: ${colName('recibo')} ${eur(r2)} · ${colName('doy')} ${eur(d2)} · diferencia `), M+4, yy+3.5);
+      const lw = doc.getTextWidth(pdfText(`Quedaría: ${colName('recibo')} ${eur(r2)} · ${colName('doy')} ${eur(d2)} · diferencia `));
+      doc.setFont('helvetica','bold'); doc.setTextColor(...(Math.abs(f2) < 0.005 ? good : bad));
+      doc.text(Math.abs(f2) < 0.005 ? '0,00 €' : `${f2 > 0 ? '+' : '-'}${eur(Math.abs(f2))}`, M+4+lw+1.2, yy+3.5);
+      y += h;
+    });
+  }
+
   const pages = doc.getNumberOfPages();
-  for (let p=1;p<=pages;p++){ doc.setPage(p); doc.setFontSize(7.5); doc.setTextColor(...muted); doc.text(`Página ${p} de ${pages}`, W-M, H-6, {align:'right'}); }
-  saveBlob(doc.output('blob'), `propuesta-intercambio_${stamp()}.pdf`); toast('PDF descargado');
+  for (let p=1;p<=pages;p++){ doc.setPage(p); doc.setFont('helvetica','normal'); doc.setFontSize(7.5); doc.setTextColor(...muted); doc.text(`Página ${p} de ${pages}`, W-M, H-6, {align:'right'}); }
+  saveBlob(doc.output('blob'), `propuesta-intercambio_${slug(who()) ? slug(who()) + '_' : ''}${stamp()}.pdf`); toast('PDF descargado');
 }));
 
 load();

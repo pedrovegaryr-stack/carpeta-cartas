@@ -174,8 +174,13 @@ para que `intercambio.html` tenga los valores al día. 15–20 s entre cartas. C
     y enseña las 3 mejores (distintas entre sí) con botón «Añadir». Orden: **primero la que más se acerca a 0** (al céntimo);
     si empatan, la que tenga más cartas «me falta» (en Recibo) o más bulk < 1 € (en Doy); luego la de menos cartas.
     Ej.: si faltan 1,40 € y un Pikachu que ya tengo vale 1,40 €, sale el primero.
-  - «Descargar propuesta en PDF»: `propuesta-intercambio_AAAA-MM-DD_HH-MM.pdf`.
-  - La selección se guarda en el navegador (localStorage).
+  - Opción «Cuadrar usando mis cartas de hasta X €» (2 € por defecto; vacío o 0 = sin límite): en el lado «Doy» no propone cartas más caras.
+  - Campo «Nombre de la otra persona»: las columnas pasan a «Recibo de [nombre]» / «Doy a [nombre]».
+  - «Descargar propuesta en PDF»: `propuesta-intercambio_[nombre]_AAAA-MM-DD_HH-MM.pdf` (nombre sin tildes ni espacios), título
+    «Propuesta de intercambio con [nombre]», las dos columnas, balanza y la sección «Opciones para cuadrar»: frase con la descompensación,
+    las 3 combinaciones de «Cuadrar» (fotos, nombre, número, valor, quién las pondría y cómo quedaría la balanza). Si Jose añadió una
+    con «Cuadrar» y sigue en la propuesta, sale como «Opción elegida» y las otras como «Alternativa».
+  - La selección, el nombre, el límite y la opción elegida se guardan en el navegador (localStorage).
 
 ---
 
