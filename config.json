@@ -1,5 +1,7 @@
 {
   "modo": "suelo",
   "ajuste": 0,
-  "minimo": 0.02
+  "minimo": 0.02,
+  "porcentaje": 0,
+  "tope": 0
 }
