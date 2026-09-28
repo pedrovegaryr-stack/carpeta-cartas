@@ -58,7 +58,8 @@ Habla con Jose en español, con pasos claros. Antes de cualquier acción irrever
 - `type`: `grass fire water lightning psychic fighting darkness metal dragon colorless trainer code` (solo decorativo si falta la foto; mira el símbolo de energía de la carta).
 - `tag`: `""`, `"ex"`, `"Ilustración especial"` (número mayor que el total de la colección o arte completo), `"Classic"`.
 - `foil` (opcional, solo cartas con efecto fuerte): patrón del foil en la web: `"holo"` (bandas arcoíris verticales),
-  `"textura"` (líneas finas grabadas en diagonal), `"cosmos"` (destellos pequeños) u `"oro"` (secretas doradas). Si falta:
+  `"textura"` (relieve tipo huella dactilar: surcos finos y concéntricos con 3–5 remolinos, generado por código con semilla fija
+   por id y en caché; casi invisible de frente, se ve al inclinar; en la ampliada también es el mapa de relieve de la luz), `"cosmos"` (destellos pequeños) u `"oro"` (secretas doradas). Si falta:
   `textura` en `Ilustración especial`, `holo` en el resto. Zona: toda la carta en textura/oro, ilustraciones especiales y
   ex/V/VSTAR/V-ASTRO/VMAX/GX; en las demás solo el recuadro de la ilustración. El brillo sigue la luminosidad de la foto
   (intenso en lo claro, casi nulo en lo oscuro). En la vista ampliada, además: relieve con luz real (filtro SVG), canto brillante
