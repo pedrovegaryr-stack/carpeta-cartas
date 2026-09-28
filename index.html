@@ -751,8 +751,22 @@ async function boot(){
    escribe --rx/--ry/--px/--py en ese elemento. En móvil la cuadrícula no se inclina (para no estorbar al desplazarse):
    al tocar se abre la carta ampliada, que sí se mueve con el dedo. «Reducir movimiento» desactiva todo el efecto. */
 const REDUCED = window.matchMedia('(prefers-reduced-motion: reduce)');
-const FOIL_TAGS = ['Ilustración especial', 'Classic', 'ex'];
-const foil = c => c.qty <= 0 ? 'foil-none' : (FOIL_TAGS.includes(c.tag) || /\s(ex|EX|V|VSTAR|V-ASTRO|VMAX|GX)$/.test(c.name)) ? 'foil-strong' : 'foil-soft';
+// Intensidad del efecto, por orden: agotada -> ninguno; campo «holo» de la carta (fuerte/suave/ninguno) si existe;
+// colección en config.json > colecciones_holo (todas sus cartas son holo) -> fuerte; si no, fuerte en ilustraciones especiales,
+// ex y V/VSTAR/V-ASTRO/VMAX/GX, y suave en el resto. La colección se mira por el nombre (set) y por la edición de la url de
+// Cardmarket, así las Classic Collection de 30th Celebration (url /30th-Celebration/…) cuentan como 30th Celebration.
+const FOIL_TAGS = ['Ilustración especial', 'ex'];
+const slugCol = s => String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+const holoCols = () => (Array.isArray(CFG?.colecciones_holo) ? CFG.colecciones_holo : ['30th Celebration']).map(slugCol);
+const edicion = c => slugCol((/\/Singles\/([^/]+)\//.exec(c.url || '') || [])[1]);
+const HOLO = {fuerte:'foil-strong', suave:'foil-soft', ninguno:'foil-none'};
+const foil = c => {
+  if (c.qty <= 0) return 'foil-none';
+  if (HOLO[c.holo]) return HOLO[c.holo];
+  const cols = holoCols();
+  if (cols.includes(slugCol(c.set)) || cols.includes(edicion(c))) return 'foil-strong';
+  return FOIL_TAGS.includes(c.tag) || /\s(ex|EX|V|VSTAR|V-ASTRO|VMAX|GX)$/.test(c.name) ? 'foil-strong' : 'foil-soft';
+};
 const fxLayers = c => foil(c) === 'foil-strong' ? '<span class="fx fx-holo"></span><span class="fx fx-spark"></span><span class="fx fx-glare"></span>'
   : foil(c) === 'foil-soft' ? '<span class="fx fx-glare"></span>' : '';
 

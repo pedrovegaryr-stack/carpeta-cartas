@@ -57,9 +57,11 @@ Habla con Jose en español, con pasos claros. Antes de cualquier acción irrever
 - `url`: página del producto en Cardmarket **sin parámetros**. Junto con `idioma` es la clave para cruzar con las ofertas de Jose.
 - `type`: `grass fire water lightning psychic fighting darkness metal dragon colorless trainer code` (solo decorativo si falta la foto; mira el símbolo de energía de la carta).
 - `tag`: `""`, `"ex"`, `"Ilustración especial"` (número mayor que el total de la colección o arte completo), `"Classic"`.
-  En la web, las fotos tienen efecto 3D al pasar el ratón y se amplían al pulsar: holo arcoíris fuerte si `tag` es `ex`,
-  `Ilustración especial` o `Classic`, o si el nombre acaba en ex/V/VSTAR/V-ASTRO/VMAX/GX; solo inclinación y reflejo en el resto;
-  ninguno en las agotadas. Respeta «reducir movimiento» del sistema.
+- `holo` (opcional): `"fuerte"`, `"suave"` o `"ninguno"`. Si existe, manda sobre las reglas del efecto de la web (solo para casos concretos).
+  Efecto de las fotos en la web (3D al pasar el ratón, ampliada al pulsar), por orden: agotada → ninguno; campo `holo`; colección en
+  `config.json` > `colecciones_holo` (todas sus cartas son holo; se compara con `set` y con la edición de la url, así las Classic
+  Collection de `/30th-Celebration/` cuentan) → fuerte; si no, fuerte en `Ilustración especial`, `ex` y nombres que acaban en
+  ex/V/VSTAR/V-ASTRO/VMAX/GX, y suave (solo inclinación y reflejo) en el resto. Respeta «reducir movimiento» del sistema.
 - `toploader`: `true` si el comentario de la oferta menciona toploader.
 - `price` / `qty`: valor inicial; los reales vienen de `stock.csv`.
 - `deseadas` (Flujo D): cartas que Jose aceptaría recibir. **`en_coleccion`** lo controla Jose y es independiente de su stock a la venta:
@@ -127,7 +129,9 @@ Convertir a WebP de 380 px de ancho, calidad 78 (Pillow) y guardar como `img/<id
 
 ## Flujo A — Listar una colección nueva en Cardmarket
 
-1. Jose dice la colección (ej. «Mega Evolución 3»). Localiza su página de listado masivo:
+1. Jose dice la colección (ej. «Mega Evolución 3»). **Pregúntale si todas sus cartas son holo**: si dice que sí, añade su nombre
+   (como se escribe en `set`) a `colecciones_holo` de `config.json` para que la web les ponga el efecto fuerte.
+   Localiza su página de listado masivo:
    `https://www.cardmarket.com/es/Pokemon/Stock/ListingMethods/BulkListing` (elegir la expansión).
 2. **Dictado**: Jose dicta con el dictado de Windows (Win+H), p. ej. «carta 012 tengo dos, carta 047 tengo una reverse».
    Acepta números con o sin ceros, en cifra o en palabra, en varios mensajes, hasta que diga «ya está».
@@ -277,4 +281,5 @@ más de una hora: avisa a Jose antes y guarda el progreso para poder seguir si s
 - Ofertas en el carrito de un comprador no se pueden borrar hasta que se liberan.
 - Si Cloudflare bloquea, no reintentes en bucle: para y avisa a Jose.
 - No toques `config.json` a mano ni lo sobrescribas al subir archivos. Excepción: `dias_agotada` (días que una agotada se queda en su sitio)
-  se puede cambiar a mano; `api/modo.js` conserva los campos que no gestiona. Haz `git pull` antes, por si el botón lo acaba de cambiar.
+  y `colecciones_holo` (colecciones en las que todas las cartas son holo; ahora `["30th Celebration"]`)
+  se pueden cambiar a mano; `api/modo.js` conserva los campos que no gestiona. Haz `git pull` antes, por si el botón lo acaba de cambiar.
