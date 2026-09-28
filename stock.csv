@@ -61,7 +61,7 @@ id;carta;precio;cantidad
 59;Pikachu ex 053/128;2.10;1
 60;Pikachu ex 054/128;2.10;1
 61;Pokétableta 126/128;0.75;1
-62;Raikou VIV 50;20.00;1
+62;Raikou VIV 50;20.00;0
 63;Reshiram 014/128;0.25;2
 64;Scraggy 094/128;0.25;2
 65;Seismitoad 084/128;0.25;1
@@ -77,7 +77,7 @@ id;carta;precio;cantidad
 75;Wishiwashi 022/128;0.25;3
 76;Xerneas 076/128;0.25;1
 77;Yveltal 100/128;0.25;1
-78;Zacian V SSH 138;13.00;1
+78;Zacian V SSH 138;13.00;0
 79;Zacian 106/128;0.25;1
 80;Zamazenta 107/128;0.25;1
 81;Zeraora 057/128;0.25;3

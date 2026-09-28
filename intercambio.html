@@ -131,6 +131,27 @@ h2{font:800 22px/1.1 var(--display);margin:0}
 .disp-cols .chip[aria-pressed="true"]{color:#1a1406;background:var(--gold);border-color:var(--gold)}
 .disp-cols .chip .lang-flag{width:15px;height:10px;border-radius:2px;margin-right:6px;box-shadow:0 0 0 .5px rgba(0,0,0,.3)}
 .disp-cols .chip .n{margin-left:6px;font:600 11px var(--mono);opacity:.75}
+.modo{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:14px;color:var(--muted);font-size:13px}
+.modo .seg2{display:inline-flex;border:1px solid var(--edge);border-radius:999px;overflow:hidden}
+.modo .seg2 button{background:transparent;color:var(--muted);border:0;padding:7px 14px;font:700 13px var(--body);cursor:pointer}
+.modo .seg2 button[aria-pressed="true"]{background:var(--gold);color:#1a1406}
+.money{margin-top:14px;border:1.5px solid var(--gold);border-radius:12px;background:rgba(232,186,94,.07);padding:16px;display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);gap:18px}
+.money .who-pays{font:700 15px var(--body);color:var(--ink)}
+.money .amount{font:600 40px/1.1 var(--mono);color:var(--gold);margin-top:4px;font-variant-numeric:tabular-nums}
+.money .exact{color:var(--muted);font-size:12.5px;margin-top:2px}
+.money .brk{margin:10px 0 0;padding:0;list-style:none;font-size:12.5px;color:var(--muted)}
+.money .brk li{display:flex;justify-content:space-between;gap:10px;border-bottom:1px dashed var(--edge);padding:3px 0}
+.money .brk li b{color:var(--ink);font-family:var(--mono);font-weight:600}
+.money .brk li.tot{border-bottom:0;color:var(--ink);font-weight:700}
+.money .fields{display:grid;grid-template-columns:1fr 1fr;gap:10px;align-content:start}
+.money label{display:flex;flex-direction:column;gap:4px;font:700 12px var(--body);color:var(--muted)}
+.money label.wide{grid-column:1/-1}
+.money input,.money select{background:var(--binder);color:var(--ink);border:1px solid var(--edge);border-radius:7px;padding:7px 9px;font:14px var(--body)}
+.money input.set{border-color:var(--gold)}
+.money .pair{display:flex;gap:6px}.money .pair>*{flex:1;min-width:0}
+.resto{margin-top:12px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;border:1px dashed var(--edge);border-radius:10px;padding:9px 12px;color:var(--muted);font-size:13.5px}
+.resto b{color:var(--ink)} .resto.on{border-style:solid;border-color:var(--good)}
+@media (max-width:760px){ .money{grid-template-columns:1fr} .money .amount{font-size:32px} }
 .toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:var(--ink);color:#10202a;font-weight:700;padding:10px 14px;border-radius:8px;font-size:13px}
 @media (max-width:860px){ .cols{grid-template-columns:1fr} .combos{grid-template-columns:1fr} }
 @media (max-width:560px){ .scale-row{grid-template-columns:1fr 1fr} .diff{grid-column:1/-1;order:3} .tot b{font-size:22px} }
@@ -151,6 +172,28 @@ h2{font:800 22px/1.1 var(--display);margin:0}
       <div class="tot give"><small id="l-d">Doy</small><b id="t-d">0,00 €</b></div>
     </div>
     <div class="beam" aria-hidden="true"><i class="r" id="beam-r" style="width:50%"></i><i class="g" id="beam-g" style="width:50%"></i></div>
+    <div class="modo">Cómo se compensa la diferencia:
+      <span class="seg2" role="group" aria-label="Cómo se compensa la diferencia"><button type="button" data-modo="cartas" aria-pressed="true">Con cartas</button><button type="button" data-modo="dinero" aria-pressed="false">Con dinero</button></span>
+    </div>
+    <div class="money" id="money" hidden>
+      <div>
+        <div class="who-pays" id="m-who">—</div>
+        <div class="amount" id="m-amount">0,00 €</div>
+        <div class="exact" id="m-exact"></div>
+        <ul class="brk" id="m-brk"></ul>
+      </div>
+      <div class="fields">
+        <label>Redondeo
+          <select id="m-round"><option value="0">Sin redondeo</option><option value="0.1">A 0,10 €</option><option value="0.5">A 0,50 €</option><option value="1">A euro entero</option></select></label>
+        <label>Importe a mano (€)
+          <input type="number" id="m-manual" min="0" step="0.01" placeholder="calculado" title="Sustituye al importe calculado; sale con * en el PDF"></label>
+        <label class="wide">Gastos de envío (opcional)
+          <span class="pair"><input type="number" id="m-env" min="0" step="0.01" placeholder="0,00 €"><select id="m-envpaga"><option value="otra">los paga la otra persona</option><option value="yo">los pago yo</option></select></span></label>
+        <label class="wide">Método de pago (opcional)
+          <input type="text" id="m-metodo" maxlength="60" placeholder="Ej.: Bizum, PayPal amigos…" autocomplete="off"></label>
+      </div>
+    </div>
+    <div class="resto" id="resto" hidden></div>
     <div class="bar">
       <button class="btn primary" id="cuadrar" type="button">Cuadrar</button>
       <label class="lim" for="lim">usando mis cartas de hasta <input type="number" id="lim" min="0" step="0.5" value="2"> €</label>
@@ -208,7 +251,9 @@ let vals = {};                      // valores cambiados a mano: key -> €
 // nombre de la otra persona, límite de «Cuadrar» para mis cartas (0 = sin límite)
 // y la última combinación añadida con «Cuadrar» ({side, chosen:[keys], alts:[[keys]…]}) para el PDF.
 // disp: cartas disponibles de cada persona (clave = nombre normalizado) -> [keys de la colección]
-let meta = {nombre: '', limite: 2, elegida: null, disp: {}};
+let meta = {nombre: '', limite: 2, elegida: null, disp: {},
+  // modo: 'cartas' (Cuadrar) o 'dinero'; dinero: opciones de la compensación; restoDinero: la diferencia restante tras la opción elegida se paga en dinero
+  modo: 'cartas', dinero: {redondeo: '0', manual: null, envio: 0, envioPaga: 'otra', metodo: ''}, restoDinero: false};
 const COLS = [];                    // colecciones para marcar disponibles: {id, nombre, idioma, ejemplo, keys}
 const BULK = 1;                     // por debajo de 1 € cuenta como bulk
 
@@ -249,6 +294,9 @@ function restore(){
       const e = s.meta.elegida;
       meta.elegida = e && [e.chosen, ...e.alts].flat().every(k => ITEMS[k]) ? e : null;
       meta.disp = Object.fromEntries(Object.entries(s.meta.disp || {}).map(([p, ks]) => [p, ks.filter(k => ITEMS[k])]));
+      if (s.meta.modo === 'dinero') meta.modo = 'dinero';
+      Object.assign(meta.dinero, s.meta.dinero || {});
+      meta.restoDinero = !!s.meta.restoDinero;
     }
   } catch(e){}
   document.getElementById('nombre').value = meta.nombre;
@@ -312,7 +360,7 @@ function dates(list){
 }
 
 /* ---------- Pintar ---------- */
-function render(){ renderScale(); SIDES.forEach(renderSel); SIDES.forEach(renderPick); renderDisp(); save(); }
+function render(){ renderScale(); renderMoney(); SIDES.forEach(renderSel); SIDES.forEach(renderPick); renderDisp(); save(); }
 
 function renderScale(){
   const R = total('recibo'), D = total('doy'), diff = R - D;
@@ -404,6 +452,84 @@ SIDES.forEach(side => {
 document.getElementById('clear').addEventListener('click', () => { sel = {recibo: [], doy: []}; vals = {}; meta.elegida = null; hideSugg(); render(); });
 document.getElementById('nombre').addEventListener('input', e => { meta.nombre = e.target.value; hideSugg(); render(); });
 document.getElementById('lim').addEventListener('input', e => { const v = num(e.target.value); meta.limite = v != null && v > 0 ? v : 0; hideSugg(); save(); });
+
+/* ---------- Compensación en dinero ---------- */
+const round2 = n => Math.round(n * 100) / 100;
+// Importes con signo: positivo = la otra persona paga a BePokemon; negativo = BePokemon paga a la otra persona.
+function money(){
+  const R = total('recibo'), D = total('doy'), d = meta.dinero;
+  const exact = round2(D - R);                                    // diferencia de cartas
+  const step = Number(d.redondeo) || 0;
+  const rounded = step ? round2(Math.sign(exact) * Math.round(Math.abs(exact) / step) * step) : exact;
+  const manual = d.manual != null && d.manual !== '' ? Number(d.manual) : null;
+  const base = manual != null ? round2((exact < 0 ? -1 : 1) * manual) : rounded;   // el importe a mano sustituye al calculado
+  const env = Number(d.envio) > 0 ? round2(Number(d.envio)) * (d.envioPaga === 'yo' ? -1 : 1) : 0;
+  const final = round2(base + env);
+  return {R, D, exact, step, rounded, manual, base, env, final, metodo: (d.metodo || '').trim()};
+}
+const signed = n => (n > 0 ? '+' : n < 0 ? '−' : '') + eur(Math.abs(n));
+const payText = (n, other) => Math.abs(n) < 0.005 ? 'No hay que pagar nada: está igualado'
+  : n > 0 ? `${other} paga a ${YO} ${eur(n)}` : `${YO} paga a ${other} ${eur(-n)}`;
+// Desglose en el mismo sentido (+ paga la otra persona, − pago yo)
+function breakdown(m, other){
+  const L = [['Diferencia de cartas', m.exact]];
+  if (m.manual == null && m.step) L.push([`Redondeo ${({0.1:'a 0,10 €', 0.5:'a 0,50 €', 1:'a euro entero'})[m.step]}`, round2(m.rounded - m.exact)]);
+  if (m.manual != null) L.push(['Ajuste acordado a mano *', round2(m.base - m.exact)]);
+  if (m.env) L.push([`Envío (lo paga ${m.env > 0 ? other : YO})`, m.env]);
+  return L;
+}
+// La diferencia que queda tras añadir una opción de «Cuadrar» (si es pequeña se puede pagar en dinero)
+function resto(){
+  const e = meta.elegida, R = total('recibo'), D = total('doy'), d = round2(D - R);
+  if (!e || !e.chosen.every(k => selQty(e.side, k) > 0) || Math.abs(d) < 0.005) return null;
+  if (Math.abs(d) > Math.max(1, 0.1 * Math.max(R, D))) return null;
+  return d;
+}
+
+function renderMoney(){
+  const dinero = meta.modo === 'dinero', other = who() || 'La otra persona';
+  document.querySelectorAll('.modo [data-modo]').forEach(b => b.setAttribute('aria-pressed', b.dataset.modo === meta.modo));
+  document.getElementById('money').hidden = !dinero;
+  document.getElementById('cuadrar').hidden = dinero;
+  document.querySelector('label.lim[for="lim"]').hidden = dinero;
+  if (dinero) document.getElementById('sugg').hidden = true;
+  document.getElementById('pdf').textContent = dinero ? 'Descargar resumen en PDF' : 'Descargar propuesta en PDF';
+  const r = resto(), box = document.getElementById('resto');
+  box.hidden = dinero || r == null;
+  if (!box.hidden){
+    box.classList.toggle('on', meta.restoDinero);
+    box.innerHTML = `Diferencia restante: <b>${eur(Math.abs(r))}</b> → la paga <b>${r > 0 ? esc(other) : YO}</b>${meta.restoDinero ? ' en dinero ✓' : ''}
+      <button class="btn sm" type="button" id="resto-btn">${meta.restoDinero ? 'No pagarla en dinero' : 'Pagarla en dinero'}</button>`;
+  }
+  if (!dinero) return;
+  const m = money(), d = meta.dinero;
+  document.getElementById('m-who').textContent = Math.abs(m.final) < 0.005 ? 'Compensación en dinero' : (m.final > 0 ? `${other} paga a ${YO}` : `${YO} paga a ${other}`);
+  document.getElementById('m-amount').textContent = Math.abs(m.final) < 0.005 ? 'Igualado' : eur(Math.abs(m.final)) + (m.manual != null ? ' *' : '');
+  document.getElementById('m-exact').textContent = m.manual != null || m.step || m.env ? `Importe exacto por las cartas: ${eur(Math.abs(m.exact))}` + (m.manual != null ? ' · * importe acordado a mano' : '') : '';
+  document.getElementById('m-brk').innerHTML = breakdown(m, other).map(([t, v]) => `<li><span>${esc(t)}</span><b>${signed(v)}</b></li>`).join('')
+    + `<li class="tot"><span>Total (+ paga ${esc(other)} · − paga ${YO})</span><b>${signed(m.final)}</b></li>`
+    + (m.metodo ? `<li><span>Método de pago</span><b>${esc(m.metodo)}</b></li>` : '');
+  // Rellenar los campos solo si no se está escribiendo en ellos
+  const set = (id, v) => { const el = document.getElementById(id); if (document.activeElement !== el) el.value = v; };
+  set('m-round', d.redondeo); set('m-manual', d.manual ?? ''); set('m-env', Number(d.envio) > 0 ? d.envio : ''); set('m-envpaga', d.envioPaga); set('m-metodo', d.metodo);
+  document.getElementById('m-manual').classList.toggle('set', d.manual != null && d.manual !== '');
+  document.querySelector('#m-envpaga option[value="otra"]').textContent = `los paga ${other}`;
+}
+document.querySelector('.modo').addEventListener('click', e => {
+  const b = e.target.closest('[data-modo]'); if (!b) return;
+  meta.modo = b.dataset.modo; hideSugg(); render();
+});
+document.getElementById('resto').addEventListener('click', e => { if (e.target.closest('#resto-btn')){ meta.restoDinero = !meta.restoDinero; render(); } });
+document.getElementById('money').addEventListener('input', e => {
+  const d = meta.dinero, v = e.target.value;
+  if (e.target.id === 'm-round') d.redondeo = v;
+  else if (e.target.id === 'm-manual') d.manual = v === '' || num(v) == null ? null : Math.max(0, num(v));
+  else if (e.target.id === 'm-env') d.envio = Math.max(0, num(v) || 0);
+  else if (e.target.id === 'm-envpaga') d.envioPaga = v;
+  else if (e.target.id === 'm-metodo') d.metodo = v;
+  else return;
+  renderMoney(); save();
+});
 
 /* ---------- Cartas disponibles de la otra persona (por persona, varias colecciones) ---------- */
 const pkey = () => norm(who());
@@ -560,6 +686,7 @@ document.getElementById('cuadrar').addEventListener('click', () => {
     const b = e.target.closest('[data-combo]'); if (!b) return;
     const keys = c => c.cards.map(p => p.key), chosen = combos[+b.dataset.combo];
     meta.elegida = {side, chosen: keys(chosen), alts: combos.filter(c => c !== chosen).map(keys)};
+    meta.restoDinero = false;
     chosen.cards.forEach(p => add(p.key)); hideSugg(); render(); toast('Combinación añadida');
   };
 });
@@ -609,7 +736,9 @@ document.getElementById('pdf').addEventListener('click', ev => busy(ev.currentTa
   const cols = {};
   for (const side of SIDES) cols[side] = await Promise.all(sel[side].map(async s => ({...ITEMS[s.key], key:s.key, qty:s.qty, v:val(s.key), edited: s.key in vals, pic: await thumb(ITEMS[s.key].img)})));
   const R = total('recibo'), D = total('doy'), diff = R - D;
-  const op = pdfOptions();
+  const mode = meta.modo === 'dinero';                       // «Con dinero»: resumen con compensación en dinero, sin opciones
+  const m = mode ? money() : null, rest = !mode && meta.restoDinero ? resto() : null;
+  const op = mode ? null : pdfOptions();
   const pics = {};
   if (op) for (const o of op.opts) for (const k of o.keys) if (!(k in pics)) pics[k] = await thumb(ITEMS[k].img);
   const used = [...cols.recibo, ...cols.doy, ...(op ? op.opts.flatMap(o => o.keys.map(k => ITEMS[k])) : [])];
@@ -627,16 +756,19 @@ document.getElementById('pdf').addEventListener('click', ev => busy(ev.currentTa
   const optBoxH = op && op.opts.length ? 14 + OP.ih + 11 + 12 : 0;
   const optH = op ? 14 + optBoxH : 0;
   const headH = 17 + 20 + 9 + 10;                   // título, franja, frase de diferencia, cabecera de columnas
-  const afterGrid = 11;                              // nota de fechas
+  const afterGrid = mode ? 6 : 11;                   // nota de fechas (en modo dinero va en el pie)
   const endH = 10;                                   // pie
+  const MONEY_H = 60;                                // bloque «Compensación en dinero»
+  const blockH = mode ? MONEY_H : optH;
   let g = grid(3);
-  if (headH + gridH(g) + afterGrid + optH + endH > H - 2*M) g = grid(4);
-  const optionsOnPage1 = headH + gridH(g) + afterGrid + optH + endH <= H - 2*M;
+  if (headH + gridH(g) + afterGrid + blockH + endH > H - 2*M) g = grid(4);
+  const optionsOnPage1 = headH + gridH(g) + afterGrid + blockH + endH <= H - 2*M;
 
   /* Título */
   let y = M;
   doc.setFont('helvetica','bold'); doc.setFontSize(19); doc.setTextColor(...ink);
-  doc.text(fit(who() ? `Propuesta de intercambio con ${who()}` : 'Propuesta de intercambio', W-2*M), M, y+7);
+  const titulo = mode ? 'Resumen de intercambio' : 'Propuesta de intercambio';
+  doc.text(fit(who() ? `${titulo} con ${who()}` : titulo, W-2*M), M, y+7);
   doc.setFont('helvetica','normal'); doc.setFontSize(9); doc.setTextColor(...muted);
   doc.text(`Fecha: ${today()}`, M, y+12.5);
   y += 17;
@@ -657,7 +789,8 @@ document.getElementById('pdf').addEventListener('click', ev => busy(ev.currentTa
   });
   y += 20;
   doc.setFont('helvetica','bold'); doc.setFontSize(11.5); doc.setTextColor(...ink);
-  doc.text(pdfText(need(diff)), M, y + 4.5);
+  doc.text(pdfText(mode ? `Compensación: ${payText(m.final, other)}${m.manual != null ? ' *' : ''}.`
+    : rest != null ? `Diferencia restante de ${eur(Math.abs(rest))}: la paga ${rest > 0 ? other : YO} en dinero.` : need(diff)), M, y + 4.5);
   y += 9;
 
   /* Columnas en cuadrícula */
@@ -689,10 +822,38 @@ document.getElementById('pdf').addEventListener('click', ev => busy(ev.currentTa
     for (const side of SIDES) for (const [i, c] of cols[side].slice(r*g.per, (r+1)*g.per).entries()) await card(c, X[side] + i*(g.cw+3), y, g.cw, g.ih, c.pic, false);
     y += g.ch;
   }
+  const valores = `Valores según el precio más bajo en Cardmarket (idioma de cada carta, NM) a fecha ${dates(used) || today()}`;
   doc.setFont('helvetica','normal'); doc.setFontSize(8.3); doc.setTextColor(...muted);
-  doc.text(pdfText(`Valores según el precio más bajo en Cardmarket (idioma de cada carta, NM) a fecha ${dates(used) || today()}.`), M, y + 3);
-  if (used.some(c => c.edited)) doc.text('* Valor acordado a mano.', M, y + 7);
+  if (!mode) doc.text(pdfText(valores + '.'), M, y + 3);
+  if (used.some(c => c.edited)) doc.text('* Valor acordado a mano.', M, y + (mode ? 3 : 7));
   y += afterGrid;
+
+  /* Compensación en dinero: quién paga, importe grande, desglose y método de pago */
+  if (mode){
+    if (!optionsOnPage1 || y + MONEY_H + endH > BOTTOM){ doc.addPage(); y = M; }
+    const bw = W - 2*M, bh = MONEY_H - 4;
+    doc.setFillColor(252, 247, 236); doc.setDrawColor(...gold); doc.setLineWidth(0.8); doc.roundedRect(M, y, bw, bh, 3, 3, 'FD'); doc.setLineWidth(0.2);
+    doc.setFont('helvetica','bold'); doc.setFontSize(13); doc.setTextColor(...ink); doc.text('Compensación en dinero', M + 6, y + 9);
+    const nada = Math.abs(m.final) < 0.005;
+    doc.setFontSize(12.5); doc.text(pdfText(nada ? 'No hay que pagar nada' : m.final > 0 ? `${other} paga a ${YO}` : `${YO} paga a ${other}`), M + 6, y + 18);
+    doc.setFontSize(30); doc.setTextColor(...gold); doc.text(nada ? 'Igualado' : eur(Math.abs(m.final)) + (m.manual != null ? ' *' : ''), M + 6, y + 32);
+    doc.setFont('helvetica','normal'); doc.setFontSize(9.5); doc.setTextColor(...ink);
+    let ly = y + 41;
+    if (m.metodo){ doc.text(pdfText(`Método de pago: ${m.metodo}`), M + 6, ly); ly += 5; }
+    if (m.manual != null){ doc.setTextColor(...muted); doc.text(pdfText(`* Importe acordado a mano (por las cartas salían ${eur(Math.abs(m.exact))}).`), M + 6, ly); }
+    // Desglose a la derecha
+    const dx = M + bw * 0.52, dw = bw * 0.48 - 6;
+    doc.setFont('helvetica','bold'); doc.setFontSize(9); doc.setTextColor(...muted);
+    doc.text(pdfText(`Desglose (+ paga ${other} · - paga ${YO})`), dx, y + 9);
+    let by = y + 16;
+    for (const [t, v] of breakdown(m, other)){
+      doc.setFont('helvetica','normal'); doc.setFontSize(9.5); doc.setTextColor(...ink);
+      doc.text(fit(t, dw - 26), dx, by); doc.text(pdfText(signed(v)), dx + dw, by, {align:'right'});
+      doc.setDrawColor(...line); doc.line(dx, by + 2, dx + dw, by + 2); by += 6.5;
+    }
+    doc.setFont('helvetica','bold'); doc.setFontSize(10.5); doc.text('Total', dx, by + 1); doc.text(pdfText(signed(m.final)), dx + dw, by + 1, {align:'right'});
+    y += MONEY_H;
+  }
 
   /* Opciones para cuadrar: título + opciones en fila, siempre juntas en la misma página */
   if (op){
@@ -722,17 +883,23 @@ document.getElementById('pdf').addEventListener('click', ev => busy(ev.currentTa
       doc.setFont('helvetica','normal'); doc.setTextColor(...ink);
       doc.text(shrink(pdfText(`${other} ${eur(r2)} · ${YO} ${eur(d2)}`), 8), bx + 3, yy);
       doc.setFont('helvetica','bold'); doc.setTextColor(...(Math.abs(r2 - d2) < 0.005 ? good : muted));
-      doc.text(shrink(pdfText(Math.abs(r2 - d2) < 0.005 ? 'Quedaría igualado' : need(r2 - d2).replace('Para igualar, faltarían', 'Faltarían')), 8), bx + 3, yy + 4.5);
+      const fin = Math.abs(r2 - d2) < 0.005 ? 'Quedaría igualado'
+        : o.chosen && rest != null ? `Resto de ${eur(Math.abs(r2 - d2))} en dinero (lo paga ${r2 < d2 ? other : YO})`
+        : need(r2 - d2).replace('Para igualar, faltarían', 'Faltarían');
+      doc.text(shrink(pdfText(fin), 8), bx + 3, yy + 4.5);
     }
     y += optBoxH;
   }
 
   /* Pie */
   doc.setFont('helvetica','bold'); doc.setFontSize(10); doc.setTextColor(...ink);
-  doc.text(pdfText(op && op.opts.length ? `Enviado por ${VENDEDOR} · Responde con el número de opción que prefieras (o propón otra)` : `Enviado por ${VENDEDOR}`), M, y + 5);
+  const pie = mode ? `Enviado por ${VENDEDOR} · ${valores}`
+    : op && op.opts.length ? `Enviado por ${VENDEDOR} · Responde con el número de opción que prefieras (o propón otra)` : `Enviado por ${VENDEDOR}`;
+  { let f = 10; while (f > 7 && doc.getTextWidth(pdfText(pie)) > W - 2*M) doc.setFontSize(f -= 0.25); }
+  doc.text(pdfText(pie), M, y + 5);
   const pages = doc.getNumberOfPages();
   if (pages > 1) for (let p=1;p<=pages;p++){ doc.setPage(p); doc.setFont('helvetica','normal'); doc.setFontSize(7.5); doc.setTextColor(...muted); doc.text(`Página ${p} de ${pages}`, W-M, H-5, {align:'right'}); }
-  saveBlob(doc.output('blob'), `propuesta-intercambio_${slug(who()) ? slug(who()) + '_' : ''}${stamp()}.pdf`); toast('PDF descargado');
+  saveBlob(doc.output('blob'), `${mode ? 'resumen' : 'propuesta'}-intercambio_${slug(who()) ? slug(who()) + '_' : ''}${stamp()}.pdf`); toast('PDF descargado');
 }));
 
 load();

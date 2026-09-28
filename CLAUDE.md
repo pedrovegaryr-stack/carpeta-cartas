@@ -247,7 +247,16 @@ más de una hora: avisa a Jose antes y guarda el progreso para poder seguir si s
     usa **todas las marcadas de todas las colecciones**; en empate, primero las que me faltan y los Pikachu. Si no hay ninguna marcada,
     usa las deseadas como siempre.
     El PDF no enseña la lista de disponibles, solo las opciones.
-  - La selección, el nombre, el límite, la opción elegida y las disponibles de cada persona se guardan en el navegador (localStorage).
+  - **«Cómo se compensa la diferencia»**: «Con cartas» (Cuadrar, como siempre) o «Con dinero». En modo dinero no hay «Cuadrar» y sale un
+    recuadro «[nombre] paga a BePokemon X €» (o al revés) con: redondeo (sin / 0,10 / 0,50 / euro entero, con el exacto al lado), importe
+    a mano (sustituye al calculado, sale con *), envío opcional (importe y quién lo paga; se suma o resta) y método de pago (texto libre).
+    El desglose va siempre en el mismo sentido: + paga la otra persona, − paga BePokemon.
+  - En «Con cartas», si tras añadir una opción queda una diferencia pequeña (≤ 1 € o ≤ 10 % del lado mayor), sale «Diferencia restante:
+    X € → la paga Y» con botón para pagarla en dinero; el PDF lo indica bajo la franja y en la opción elegida.
+  - PDF en modo dinero: `resumen-intercambio_[nombre]_AAAA-MM-DD_HH-MM.pdf`, título «Resumen de intercambio con [nombre]», columnas y
+    franja como siempre y, en lugar de las opciones, el bloque «Compensación en dinero» (quién paga, importe grande, desglose, método).
+    Pie: «Enviado por BePokemon · Valores según el precio más bajo en Cardmarket (idioma de cada carta, NM) a fecha X». Una página.
+  - La selección, el nombre, el límite, la opción elegida, las disponibles de cada persona y las opciones de dinero se guardan en el navegador (localStorage).
 
 ---
 
