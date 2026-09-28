@@ -153,11 +153,38 @@ body{
   background-size:100% 100%,420% 100%;background-position:0 0,calc(var(--px)*1.8%) 0}
 /* Textura: relieve tipo huella dactilar generado por código (ver huella()). La huella es la máscara del brillo arcoíris:
    solo brillan los surcos, con el color según el ángulo. Casi invisible de frente; aparece al inclinar (--t = inclinación 0–1). */
-.pat-textura{mix-blend-mode:color-dodge;filter:saturate(1.5) brightness(1.05);
-  background:linear-gradient(calc(110deg + var(--px)*.9deg),hsl(calc(var(--px)*3.6) 95% 62%),hsl(calc(var(--px)*3.6 + 120) 95% 64%),hsl(calc(var(--px)*3.6 + 240) 95% 62%));
+.pat-textura{mix-blend-mode:color-dodge;filter:saturate(1.9) brightness(1.22);
+  /* bandas de color muy saturadas que recorren la carta y cambian de tono al inclinar */
+  background:repeating-linear-gradient(calc(115deg + var(--px)*.6deg),
+    hsl(calc(var(--px)*3.6 + var(--py)*1.8) 100% 60%) 0%,hsl(calc(var(--px)*3.6 + var(--py)*1.8 + 60) 100% 62%) 7%,
+    hsl(calc(var(--px)*3.6 + var(--py)*1.8 + 120) 100% 60%) 14%,hsl(calc(var(--px)*3.6 + var(--py)*1.8 + 180) 100% 62%) 21%,
+    hsl(calc(var(--px)*3.6 + var(--py)*1.8 + 240) 100% 64%) 28%,hsl(calc(var(--px)*3.6 + var(--py)*1.8 + 300) 100% 62%) 35%,
+    hsl(calc(var(--px)*3.6 + var(--py)*1.8 + 360) 100% 60%) 42%);
+  background-size:220% 220%;background-position:calc(var(--px)*1%) calc(var(--py)*1%);
+  --luz:radial-gradient(circle at calc(var(--px)*1%) calc(var(--py)*1%),#000 0%,rgba(0,0,0,.85) 45%,rgba(0,0,0,.45) 100%);
   -webkit-mask-image:var(--huella,none);
   mask-image:var(--huella,none),var(--luz),var(--img);mask-mode:alpha,alpha,luminance;mask-size:100% 100%;mask-composite:intersect}
-.photo.lit .fx-foil.pat-textura{opacity:calc(.08 + .82*var(--t,0))}
+/* Segunda capa de color sumada: el color que se mezcla con la carta es más intenso (más arcoíris en los surcos) */
+.pat-textura::after{content:"";position:absolute;inset:0;background:inherit;mix-blend-mode:plus-lighter;opacity:0}
+.zoom .pat-textura::after{opacity:0}
+/* Casi apagado de frente; se enciende al inclinar (--t). Cuadrícula algo más suave, ampliada más fuerte. */
+.photo.lit .fx-foil.pat-textura{opacity:calc(.05 + .85*var(--t,0))}
+.zoom .photo.lit .fx-foil.pat-textura{opacity:calc(.04 + .96*var(--t,0));filter:saturate(2.1) brightness(1.22)}
+/* Destellos puntuales: puntos blancos solo sobre los surcos y donde da la luz, que parpadean al cambiar el ángulo */
+.fx-destellos{mix-blend-mode:plus-lighter;
+  background-image:radial-gradient(circle,#fff 0 1.3px,rgba(255,255,255,.55) 2px,transparent 3px),radial-gradient(circle,#fff 0 .9px,rgba(255,255,255,.4) 1.4px,transparent 2px);
+  background-size:23px 29px,37px 41px;
+  background-position:calc(var(--px)*.35px) calc(var(--py)*.28px),calc(var(--px)*-.3px + 11px) calc(var(--py)*-.25px + 17px);
+  -webkit-mask-image:var(--huella,none);
+  mask-image:var(--huella,none),radial-gradient(circle at calc(var(--px)*1%) calc(var(--py)*1%),#000 0%,rgba(0,0,0,.7) 26%,transparent 58%);
+  mask-size:100% 100%;mask-composite:intersect}
+.photo.lit .fx-destellos{opacity:calc(.8*var(--t,0))}
+.zoom .photo.lit .fx-destellos{opacity:var(--t,0)}
+/* Reflejo más fuerte en las cartas con textura (ampliada aún más) */
+.pat-textura ~ .fx-glare{background:radial-gradient(circle at calc(var(--px)*1%) calc(var(--py)*1%),rgba(255,255,255,.9),rgba(255,255,255,.24) 28%,transparent 56%)}
+.photo.lit .pat-textura ~ .fx-glare{opacity:calc(.55 + .45*var(--t,0))}
+.zoom .pat-textura ~ .fx-glare{background:radial-gradient(circle at calc(var(--px)*1%) calc(var(--py)*1%),rgba(255,255,255,1),rgba(255,255,255,.3) 26%,transparent 58%)}
+.zoom .photo.lit .pat-textura ~ .fx-glare{opacity:calc(.5 + .5*var(--t,0))}
 /* Cosmos: tres capas de destellos pequeños que se encienden según el ángulo (--s1..--s3 los calcula el JS) */
 .pat-cosmos{mix-blend-mode:color-dodge}
 .pat-cosmos i{position:absolute;inset:0;background-repeat:repeat}
@@ -809,7 +836,7 @@ const fxLayers = (c, zoomed) => {
   if (k === 'foil-none') return '';
   if (k === 'foil-soft') return '<span class="fx fx-glare"></span>';
   const t = foilType(c);
-  return `<span class="fx fx-foil pat-${t} zona-${foilZone(c)}">${t === 'cosmos' ? '<i></i><i></i><i></i>' : ''}</span><span class="fx fx-glare"></span>`
+  return `<span class="fx fx-foil pat-${t} zona-${foilZone(c)}">${t === 'cosmos' ? '<i></i><i></i><i></i>' : ''}</span>${t === 'textura' ? '<span class="fx fx-destellos"></span>' : ''}<span class="fx fx-glare"></span>`
     + (zoomed ? reliefSVG(c) : '');
 };
 // Relieve con luz real (solo ampliada): la foto como mapa de alturas (luminancia) iluminada por un foco que sigue al puntero.
