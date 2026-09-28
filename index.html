@@ -117,18 +117,64 @@ body{
 .holo .card{padding:7px}
 .holo .card::after{content:"";position:absolute;inset:0;pointer-events:none;mix-blend-mode:overlay;opacity:.55;
   background:linear-gradient(115deg,transparent 20%,rgba(255,120,200,.7) 35%,rgba(120,220,255,.7) 45%,rgba(255,240,120,.7) 55%,transparent 70%);
-  background-size:250% 250%;animation:foil 6s ease-in-out infinite}
-@keyframes foil{0%,100%{background-position:0% 0%}50%{background-position:100% 100%}}
-@media (prefers-reduced-motion:reduce){.holo .card::after{animation:none;background-position:40% 40%}}
+  background-size:250% 250%;background-position:40% 40%}
 
-.photo{position:relative;aspect-ratio:63/88;max-width:100%;border-radius:4.6%/3.3%;overflow:hidden;background:rgba(0,0,0,.25);
-  box-shadow:0 12px 26px -12px rgba(0,0,0,.7);transition:transform .25s ease}
+/* ---- Foto con efecto 3D + holo (propio). JS solo mueve las variables de la carta activa:
+   --rx/--ry inclinación, --px/--py posición del puntero (0–100). .lit = efecto visible, .tilting = siguiendo el puntero. ---- */
+.photo{--rx:0deg;--ry:0deg;--px:50;--py:50;position:relative;aspect-ratio:63/88;max-width:100%;border-radius:4.6%/3.3%;overflow:hidden;
+  background:rgba(0,0,0,.25);box-shadow:0 12px 26px -12px rgba(0,0,0,.7);cursor:zoom-in;
+  transform:perspective(760px) rotateX(var(--rx)) rotateY(var(--ry));transition:transform .55s cubic-bezier(.2,.8,.2,1),box-shadow .55s}
 .photo img{display:block;width:100%;height:100%;object-fit:cover}
-.pocket:hover .photo{transform:translateY(-3px) rotate(-.4deg)}
-.holo .photo::after{content:"";position:absolute;inset:0;pointer-events:none;mix-blend-mode:color-dodge;opacity:.28;
-  background:linear-gradient(115deg,transparent 25%,rgba(255,120,200,.8) 38%,rgba(120,220,255,.8) 48%,rgba(255,240,120,.8) 58%,transparent 72%);
-  background-size:250% 250%;animation:foil 6s ease-in-out infinite}
-@media (prefers-reduced-motion:reduce){.holo .photo::after{animation:none;background-position:40% 40%}.pocket:hover .photo{transform:none}}
+.photo.tilting{transition:transform .09s linear,box-shadow .3s;will-change:transform;box-shadow:0 26px 44px -16px rgba(0,0,0,.85)}
+.photo:focus-visible{outline:2px solid var(--gold);outline-offset:3px}
+.fx{position:absolute;inset:0;pointer-events:none;border-radius:inherit;opacity:0;transition:opacity .5s}
+.photo.lit .fx{opacity:1}
+/* Reflejo de luz que sigue al cursor (todas) */
+.fx-glare{mix-blend-mode:soft-light;
+  background:radial-gradient(circle at calc(var(--px)*1%) calc(var(--py)*1%),rgba(255,255,255,.75),rgba(255,255,255,.18) 30%,transparent 58%)}
+.foil-soft .fx-glare{background:radial-gradient(circle at calc(var(--px)*1%) calc(var(--py)*1%),rgba(255,255,255,.5),transparent 50%)}
+/* Holofoil arcoíris: bandas que se desplazan con el ángulo, más intensas cerca de la luz (solo cartas «fuertes») */
+.fx-holo{mix-blend-mode:color-dodge;filter:saturate(1.35) contrast(1.1);
+  background:repeating-linear-gradient(112deg,#ff5f6d 0%,#ffc371 4%,#f9f871 8%,#4dffb4 12%,#44c4ff 16%,#9b6bff 20%,#ff5fd2 24%,#ff5f6d 28%);
+  background-size:320% 320%;background-position:calc(var(--px)*1%) calc(var(--py)*1%);
+  -webkit-mask-image:radial-gradient(circle at calc(var(--px)*1%) calc(var(--py)*1%),rgba(0,0,0,.85),rgba(0,0,0,.35) 45%,rgba(0,0,0,.12) 80%);
+          mask-image:radial-gradient(circle at calc(var(--px)*1%) calc(var(--py)*1%),rgba(0,0,0,.85),rgba(0,0,0,.35) 45%,rgba(0,0,0,.12) 80%)}
+.photo.lit .fx-holo{opacity:.7}
+/* Destellos: dos rejillas de puntos que se mueven en sentido contrario al puntero */
+.fx-spark{mix-blend-mode:color-dodge;
+  background-image:radial-gradient(circle,#fff 0 .9px,transparent 1.6px),radial-gradient(circle,rgba(255,236,170,.95) 0 .7px,transparent 1.3px);
+  background-size:27px 31px,41px 37px;
+  background-position:calc(var(--px)*-0.45px) calc(var(--py)*-0.35px),calc(var(--px)*0.3px + 13px) calc(var(--py)*0.4px + 7px);
+  -webkit-mask-image:radial-gradient(circle at calc(100% - var(--px)*1%) calc(100% - var(--py)*1%),#000,rgba(0,0,0,.2) 55%,transparent 80%);
+          mask-image:radial-gradient(circle at calc(100% - var(--px)*1%) calc(100% - var(--py)*1%),#000,rgba(0,0,0,.2) 55%,transparent 80%)}
+.photo.lit .fx-spark{opacity:.95}
+.pocket.agotada .photo{cursor:zoom-in}
+.pocket.agotada .fx{display:none}
+@media (prefers-reduced-motion:reduce){.photo,.photo.tilting{transform:none;transition:none}.fx{display:none}}
+
+/* ---- Carta ampliada ---- */
+.zoom{position:fixed;inset:0;z-index:60;display:flex;align-items:center;justify-content:center;padding:max(16px,env(safe-area-inset-top)) 16px max(16px,env(safe-area-inset-bottom));
+  background:rgba(4,10,14,.88);-webkit-backdrop-filter:blur(5px);backdrop-filter:blur(5px);animation:zoomIn .25s ease}
+@keyframes zoomIn{from{opacity:0}to{opacity:1}}
+.zoom-box{position:relative;display:flex;flex-direction:column;align-items:center;gap:16px;max-width:100%;max-height:100%}
+.zoom-stage{perspective:1000px;touch-action:none;padding:18px 22px}
+.zoom .photo{width:min(74vw,430px,calc((100vh - 290px)*63/88));width:min(74vw,430px,calc((100dvh - 290px)*63/88));min-width:180px;cursor:grab;
+  box-shadow:0 30px 70px -20px rgba(0,0,0,.9)}
+.zoom .photo .lang{top:9px;left:9px;transform:scale(1.25);transform-origin:top left}
+.zoom-info{position:relative;z-index:1;text-align:center;display:flex;flex-direction:column;align-items:center;gap:4px;max-width:430px}
+.zoom-info h2{margin:0;font:800 24px/1.1 var(--display);color:var(--ink)}
+.zoom-info .sub{color:var(--muted);font-size:13.5px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:center}
+.zoom-info .sub .lang-flag{width:16px;height:11px;border-radius:2px;vertical-align:-1px;box-shadow:0 0 0 .5px rgba(0,0,0,.3)}
+.zoom-info .price{margin-top:4px;font:600 26px var(--mono);color:var(--gold)}
+.zoom-info .price s{font-size:15px;color:var(--faint);margin-right:8px}
+.zoom-info .qty{color:var(--muted);font-size:12.5px}
+.zoom-actions{display:flex;gap:10px;margin-top:8px}
+.zoom-actions .btn{min-width:140px;white-space:nowrap}
+.zoom-x{position:fixed;top:max(12px,env(safe-area-inset-top));right:max(12px,env(safe-area-inset-right));z-index:3;width:40px;height:40px;border-radius:50%;border:1px solid rgba(255,255,255,.25);background:rgba(16,32,42,.9);
+  color:#fff;font:400 26px/1 var(--body);cursor:pointer}
+.zoom-x:hover{background:#1c3a4a}
+@media (max-width:560px){.zoom-info h2{font-size:21px}.zoom-actions .btn{min-width:0;flex:1}}
+@media (prefers-reduced-motion:reduce){.zoom{animation:none}}
 .meta{display:flex;flex-direction:column;gap:3px;min-width:0}
 .meta h3{margin:0;font:700 15px/1.2 var(--display);letter-spacing:-.005em;overflow-wrap:anywhere}
 .meta .set{color:var(--faint);font-size:12px}
@@ -172,7 +218,6 @@ body{
 .btn-tool:hover{border-color:rgba(214,236,240,.3)}
 .btn-tool svg{flex:none}
 .pocket.agotada .photo, .pocket.agotada .card{filter:grayscale(1) brightness(.55)}
-.pocket.agotada .photo::after{display:none}
 .pocket.agotada .price{color:var(--faint);text-decoration:line-through;text-decoration-thickness:2px}
 .pocket.agotada .meta h3{color:var(--muted)}
 .stamp{position:absolute;z-index:2;top:34%;left:50%;transform:translate(-50%,-50%) rotate(-12deg);
@@ -278,6 +323,17 @@ footer{margin-top:56px;color:var(--faint);font-size:12.5px;display:flex;gap:16px
   <textarea class="fallback" id="fallback" hidden readonly aria-label="Texto del pedido"></textarea>
 </div>
 <div class="toast" id="toast" hidden></div>
+<div class="zoom" id="zoom" hidden>
+  <div class="zoom-box" role="dialog" aria-modal="true" aria-labelledby="zoom-name">
+    <button class="zoom-x" id="zoom-x" type="button" aria-label="Cerrar">×</button>
+    <div class="zoom-stage"><div class="photo" id="zoom-photo"></div></div>
+    <div class="zoom-info">
+      <h2 id="zoom-name"></h2><div class="sub" id="zoom-sub"></div>
+      <div class="price" id="zoom-price"></div><div class="qty" id="zoom-qty"></div>
+      <div class="zoom-actions" id="zoom-actions"></div>
+    </div>
+  </div>
+</div>
 
 <script src="idiomas.js"></script>
 <script>
@@ -338,7 +394,7 @@ function cardHTML(c){
   const on = picked.has(c.id);
   const out = c.qty <= 0;
   return `<article class="pocket ${isFeatured(c)?'holo':''} ${out?'agotada':''}">${out?'<span class="stamp">Agotada</span>':''}
-    ${IMGS[c.id] ? `<div class="photo">${IDIOMAS.badgeHTML(c.idioma)}<img src="${IMGS[c.id]}" alt="${esc(c.name)} ${esc(c.numLabel)}" loading="lazy" decoding="async"></div>` : `<div class="card" style="--c:var(--t-${c.type})" role="img" aria-label="${esc(c.name)}, tipo ${TYPE_LABEL[c.type]}">${IDIOMAS.badgeHTML(c.idioma)}
+    ${IMGS[c.id] ? `<div class="photo ${foil(c)}" data-zoom="${c.id}" role="button" tabindex="0" aria-label="Ampliar ${esc(c.name)} ${esc(c.numLabel)}">${IDIOMAS.badgeHTML(c.idioma)}<img src="${IMGS[c.id]}" alt="${esc(c.name)} ${esc(c.numLabel)}" loading="lazy" decoding="async">${fxLayers(c)}</div>` : `<div class="card" style="--c:var(--t-${c.type})" role="img" aria-label="${esc(c.name)}, tipo ${TYPE_LABEL[c.type]}">${IDIOMAS.badgeHTML(c.idioma)}
       <div class="card-in">
         <div class="card-name"><span>${esc(c.name)}</span></div>
         <div class="card-art"><svg viewBox="0 0 24 24" aria-hidden="true">${ICONS[c.type]}</svg></div>
@@ -443,8 +499,12 @@ document.addEventListener('click', e => {
   if (add){
     const id = +add.dataset.id;
     if (picked.has(id)) picked.delete(id); else picked.set(id, CARDS.find(c=>c.id===id));
-    renderAll(); return;
+    renderAll();
+    if (zoomId === id) zoomInfo(CARDS.find(c => c.id === id));
+    return;
   }
+  const ph = e.target.closest('.pocket .photo[data-zoom]');
+  if (ph){ openZoom(+ph.dataset.zoom, ph); return; }
   const tr = e.target.closest('[data-trade]');
   if (tr){ const n = tr.dataset.trade; trades.has(n) ? trades.delete(n) : trades.add(n); renderWanted(); renderBar(); return; }
   const chip = e.target.closest('.chip');
@@ -679,6 +739,104 @@ async function boot(){
   await applyMode();
   renderFacts(); renderChips(); renderAll();
 }
+
+/* ---------- Efecto 3D + holo y carta ampliada (código propio) ----------
+   Solo se anima una carta a la vez (la que está bajo el ratón, o la ampliada): un único requestAnimationFrame
+   escribe --rx/--ry/--px/--py en ese elemento. En móvil la cuadrícula no se inclina (para no estorbar al desplazarse):
+   al tocar se abre la carta ampliada, que sí se mueve con el dedo. «Reducir movimiento» desactiva todo el efecto. */
+const REDUCED = window.matchMedia('(prefers-reduced-motion: reduce)');
+const FOIL_TAGS = ['Ilustración especial', 'Classic', 'ex'];
+const foil = c => c.qty <= 0 ? 'foil-none' : (FOIL_TAGS.includes(c.tag) || /\s(ex|EX|V|VSTAR|V-ASTRO|VMAX|GX)$/.test(c.name)) ? 'foil-strong' : 'foil-soft';
+const fxLayers = c => foil(c) === 'foil-strong' ? '<span class="fx fx-holo"></span><span class="fx fx-spark"></span><span class="fx fx-glare"></span>'
+  : foil(c) === 'foil-soft' ? '<span class="fx fx-glare"></span>' : '';
+
+const tilt = {el: null, x: .5, y: .5, max: 13, raf: 0};
+function paintTilt(){
+  tilt.raf = 0; const el = tilt.el; if (!el) return;
+  el.style.setProperty('--rx', ((.5 - tilt.y) * 2 * tilt.max).toFixed(2) + 'deg');
+  el.style.setProperty('--ry', ((tilt.x - .5) * 2 * tilt.max).toFixed(2) + 'deg');
+  el.style.setProperty('--px', (tilt.x * 100).toFixed(1));
+  el.style.setProperty('--py', (tilt.y * 100).toFixed(1));
+}
+function follow(el, e, max){
+  const r = el.getBoundingClientRect();
+  tilt.el = el; tilt.max = max;
+  tilt.x = Math.min(1, Math.max(0, (e.clientX - r.left) / r.width));
+  tilt.y = Math.min(1, Math.max(0, (e.clientY - r.top) / r.height));
+  if (!tilt.raf) tilt.raf = requestAnimationFrame(paintTilt);
+}
+function settle(el, keepLit){
+  if (!el) return;
+  if (tilt.el === el){ cancelAnimationFrame(tilt.raf); tilt.raf = 0; tilt.el = null; }
+  el.classList.remove('tilting');
+  ['--rx', '--ry'].forEach(p => el.style.setProperty(p, '0deg'));
+  el.style.setProperty('--px', 50); el.style.setProperty('--py', 50);
+  clearTimeout(el._off);
+  if (!keepLit) el._off = setTimeout(() => el.classList.remove('lit'), 550);
+}
+const canTilt = el => !REDUCED.matches && el && !el.classList.contains('foil-none');
+
+// Cuadrícula y Destacadas: solo ratón o lápiz
+let hovered = null;
+document.addEventListener('pointermove', e => {
+  if (e.pointerType === 'touch') return;
+  const el = e.target.closest('.pocket .photo');
+  if (el !== hovered){ settle(hovered); hovered = null; }
+  if (!canTilt(el)) return;
+  if (!hovered){ hovered = el; clearTimeout(el._off); el.classList.add('lit', 'tilting'); }
+  follow(el, e, 13);
+}, {passive: true});
+document.addEventListener('pointerleave', () => { settle(hovered); hovered = null; });
+window.addEventListener('blur', () => { settle(hovered); hovered = null; });
+
+// Carta ampliada
+const zoom = document.getElementById('zoom'), zPhoto = document.getElementById('zoom-photo');
+let zoomId = null, zoomFrom = null;
+function zoomInfo(c){
+  const out = c.qty <= 0, on = picked.has(c.id);
+  document.getElementById('zoom-name').textContent = c.name;
+  document.getElementById('zoom-sub').innerHTML = `<span>${esc(c.numLabel && c.numLabel !== 'Código' ? c.numLabel + ' · ' + c.set : c.set)}</span>`
+    + `<span>${IDIOMAS.flagSVG(c.idioma, 16, 11)} ${esc(IDIOMAS.name(c.idioma))}</span>${c.tag ? `<span>${esc(c.tag)}</span>` : ''}<span>NM</span>`;
+  document.getElementById('zoom-price').innerHTML = `${c.orig && !out ? `<s>${eur(c.orig)}</s>` : ''}${eur(c.price)}`;
+  document.getElementById('zoom-qty').textContent = out ? 'Agotada' : `${c.qty} ${c.qty === 1 ? 'disponible' : 'disponibles'}`;
+  document.getElementById('zoom-actions').innerHTML =
+    (out ? '<button class="btn btn-out" type="button" disabled>Vendida</button>'
+         : `<button class="btn btn-add" type="button" data-id="${c.id}" aria-pressed="${on}">${on ? 'Añadida ✓' : 'Me interesa'}</button>`)
+    + `<a class="btn btn-cm" href="${esc(c.url)}" target="_blank" rel="noopener">Cardmarket ↗</a>`;
+}
+function openZoom(id, from){
+  const c = CARDS.find(x => x.id === id); if (!c || !IMGS[c.id]) return;
+  zoomId = id; zoomFrom = from || null;
+  zPhoto.className = `photo ${foil(c)}`;
+  zPhoto.innerHTML = `${IDIOMAS.badgeHTML(c.idioma)}<img src="${IMGS[c.id]}" alt="${esc(c.name)} ${esc(c.numLabel)}">${fxLayers(c)}`;
+  zPhoto.style.filter = c.qty <= 0 ? 'grayscale(1) brightness(.6)' : '';
+  zoomInfo(c);
+  zoom.hidden = false; document.documentElement.style.overflow = 'hidden';
+  if (canTilt(zPhoto)){ zPhoto.classList.add('lit'); }   // efecto visible; se mueve con el ratón o el dedo
+  document.getElementById('zoom-x').focus({preventScroll: true});
+}
+function closeZoom(){
+  if (zoom.hidden) return;
+  settle(zPhoto); zoom.hidden = true; document.documentElement.style.overflow = '';
+  zoomId = null; if (zoomFrom && document.contains(zoomFrom)) zoomFrom.focus({preventScroll: true});
+}
+const stage = zoom.querySelector('.zoom-stage');
+stage.addEventListener('pointerdown', e => { if (canTilt(zPhoto) && e.pointerType === 'touch'){ zPhoto.setPointerCapture?.(e.pointerId); zPhoto.classList.add('tilting'); follow(zPhoto, e, 15); } });
+stage.addEventListener('pointermove', e => { if (!canTilt(zPhoto)) return; if (e.pointerType !== 'touch' || zPhoto.classList.contains('tilting')){ zPhoto.classList.add('tilting'); follow(zPhoto, e, 15); } }, {passive: true});
+['pointerup', 'pointercancel', 'pointerleave'].forEach(t => stage.addEventListener(t, e => { if (t !== 'pointerleave' && e.pointerType !== 'touch') return; settle(zPhoto, true); }));
+zoom.addEventListener('click', e => { if (e.target === zoom || e.target.closest('#zoom-x')) closeZoom(); });
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape' && !zoom.hidden){ closeZoom(); return; }
+  if (!zoom.hidden && e.key === 'Tab'){                 // el foco no sale de la ventana ampliada
+    const f = [...zoom.querySelectorAll('button:not([disabled]),a[href]')]; if (!f.length) return;
+    if (e.shiftKey && document.activeElement === f[0]){ e.preventDefault(); f[f.length-1].focus(); }
+    else if (!e.shiftKey && document.activeElement === f[f.length-1]){ e.preventDefault(); f[0].focus(); }
+    return;
+  }
+  const ph = e.target.closest && e.target.closest('.pocket .photo[data-zoom]');
+  if (ph && (e.key === 'Enter' || e.key === ' ')){ e.preventDefault(); openZoom(+ph.dataset.zoom, ph); }
+});
+
 boot();
 </script>
 

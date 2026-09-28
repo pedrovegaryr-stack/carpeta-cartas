@@ -57,6 +57,9 @@ Habla con Jose en español, con pasos claros. Antes de cualquier acción irrever
 - `url`: página del producto en Cardmarket **sin parámetros**. Junto con `idioma` es la clave para cruzar con las ofertas de Jose.
 - `type`: `grass fire water lightning psychic fighting darkness metal dragon colorless trainer code` (solo decorativo si falta la foto; mira el símbolo de energía de la carta).
 - `tag`: `""`, `"ex"`, `"Ilustración especial"` (número mayor que el total de la colección o arte completo), `"Classic"`.
+  En la web, las fotos tienen efecto 3D al pasar el ratón y se amplían al pulsar: holo arcoíris fuerte si `tag` es `ex`,
+  `Ilustración especial` o `Classic`, o si el nombre acaba en ex/V/VSTAR/V-ASTRO/VMAX/GX; solo inclinación y reflejo en el resto;
+  ninguno en las agotadas. Respeta «reducir movimiento» del sistema.
 - `toploader`: `true` si el comentario de la oferta menciona toploader.
 - `price` / `qty`: valor inicial; los reales vienen de `stock.csv`.
 - `deseadas` (Flujo D): cartas que Jose aceptaría recibir. **`en_coleccion`** lo controla Jose y es independiente de su stock a la venta:
