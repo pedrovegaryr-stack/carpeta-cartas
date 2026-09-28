@@ -136,21 +136,50 @@ body{
 .fx-glare{mix-blend-mode:soft-light;
   background:radial-gradient(circle at calc(var(--px)*1%) calc(var(--py)*1%),rgba(255,255,255,.75),rgba(255,255,255,.18) 30%,transparent 58%)}
 .foil-soft .fx-glare{background:radial-gradient(circle at calc(var(--px)*1%) calc(var(--py)*1%),rgba(255,255,255,.5),transparent 50%)}
-/* Holofoil arcoíris: bandas que se desplazan con el ángulo, más intensas cerca de la luz (solo cartas «fuertes») */
-.fx-holo{mix-blend-mode:color-dodge;filter:saturate(1.35) contrast(1.1);
-  background:repeating-linear-gradient(112deg,#ff5f6d 0%,#ffc371 4%,#f9f871 8%,#4dffb4 12%,#44c4ff 16%,#9b6bff 20%,#ff5fd2 24%,#ff5f6d 28%);
-  background-size:320% 320%;background-position:calc(var(--px)*1%) calc(var(--py)*1%);
-  -webkit-mask-image:radial-gradient(circle at calc(var(--px)*1%) calc(var(--py)*1%),rgba(0,0,0,.85),rgba(0,0,0,.35) 45%,rgba(0,0,0,.12) 80%);
-          mask-image:radial-gradient(circle at calc(var(--px)*1%) calc(var(--py)*1%),rgba(0,0,0,.85),rgba(0,0,0,.35) 45%,rgba(0,0,0,.12) 80%)}
-.photo.lit .fx-holo{opacity:.7}
-/* Destellos: dos rejillas de puntos que se mueven en sentido contrario al puntero */
-.fx-spark{mix-blend-mode:color-dodge;
-  background-image:radial-gradient(circle,#fff 0 .9px,transparent 1.6px),radial-gradient(circle,rgba(255,236,170,.95) 0 .7px,transparent 1.3px);
-  background-size:27px 31px,41px 37px;
-  background-position:calc(var(--px)*-0.45px) calc(var(--py)*-0.35px),calc(var(--px)*0.3px + 13px) calc(var(--py)*0.4px + 7px);
-  -webkit-mask-image:radial-gradient(circle at calc(100% - var(--px)*1%) calc(100% - var(--py)*1%),#000,rgba(0,0,0,.2) 55%,transparent 80%);
-          mask-image:radial-gradient(circle at calc(100% - var(--px)*1%) calc(100% - var(--py)*1%),#000,rgba(0,0,0,.2) 55%,transparent 80%)}
-.photo.lit .fx-spark{opacity:.95}
+
+/* ---- Foil (solo cartas «fuertes»). Capa .fx-foil con:
+   · zona: .zona-arte = solo el recuadro de la ilustración (holo normal); .zona-todo = toda la carta
+   · patrón: .pat-holo | .pat-textura | .pat-cosmos | .pat-oro (campo «foil» de la carta)
+   · máscara: la propia foto por luminosidad (brilla en lo claro, casi nada en lo oscuro) cruzada con un foco en la luz ---- */
+.fx-foil{--luz:radial-gradient(circle at calc(var(--px)*1%) calc(var(--py)*1%),#000 0%,rgba(0,0,0,.55) 38%,rgba(0,0,0,.18) 75%);
+  -webkit-mask-image:var(--luz);
+  mask-image:var(--img),var(--luz);mask-mode:luminance,alpha;mask-size:100% 100%,100% 100%;mask-composite:intersect}
+.zona-arte{clip-path:inset(10.2% 7.6% 49% 7.6% round 1.2%)}
+.photo.lit .fx-foil{opacity:1}
+/* Holo: bandas arcoíris verticales que se desplazan con el ángulo, con vetas finas */
+.pat-holo{mix-blend-mode:color-dodge;filter:saturate(1.45) brightness(.88);
+  background:repeating-linear-gradient(90deg,rgba(255,255,255,.18) 0 1px,transparent 1px 6px),
+    repeating-linear-gradient(90deg,#ff4d6d 0%,#ffb347 3.5%,#f7f36b 7%,#5cff9d 10.5%,#3fd2ff 14%,#8e7bff 17.5%,#ff5fd2 21%,#ff4d6d 24.5%);
+  background-size:100% 100%,420% 100%;background-position:0 0,calc(var(--px)*1.8%) 0}
+/* Textura: relieve de líneas finas grabadas en diagonal (cruzadas) que se encienden con la luz, con tinte arcoíris según el ángulo */
+.pat-textura{mix-blend-mode:color-dodge;filter:brightness(.95) saturate(1.4);
+  background:repeating-linear-gradient(45deg,rgba(255,255,255,.9) 0 .55px,transparent .55px 2.6px),
+    repeating-linear-gradient(-45deg,rgba(255,255,255,.35) 0 .45px,transparent .45px 3.4px),
+    linear-gradient(calc(110deg + var(--px)*.9deg),hsl(calc(var(--px)*3.6) 90% 60%),hsl(calc(var(--px)*3.6 + 120) 90% 62%),hsl(calc(var(--px)*3.6 + 240) 90% 60%))}
+/* Cosmos: tres capas de destellos pequeños que se encienden según el ángulo (--s1..--s3 los calcula el JS) */
+.pat-cosmos{mix-blend-mode:color-dodge}
+.pat-cosmos i{position:absolute;inset:0;background-repeat:repeat}
+.pat-cosmos i:nth-child(1){opacity:var(--s1,.5);background-image:radial-gradient(circle,#fff 0 .8px,transparent 1.5px);background-size:19px 23px}
+.pat-cosmos i:nth-child(2){opacity:var(--s2,.5);background-image:radial-gradient(circle,#ffe9a8 0 1.1px,transparent 2px);background-size:31px 27px;background-position:9px 13px}
+.pat-cosmos i:nth-child(3){opacity:var(--s3,.5);background-image:radial-gradient(circle,#b8e6ff 0 .7px,transparent 1.3px);background-size:13px 17px;background-position:5px 3px}
+/* Oro: reflejo dorado cepillado para las secretas doradas */
+.pat-oro{mix-blend-mode:color-dodge;filter:contrast(1.2) brightness(.9);
+  background:repeating-linear-gradient(0deg,rgba(255,255,255,.12) 0 1px,transparent 1px 3px),
+    linear-gradient(120deg,#6b4a0c 0%,#e9c65a 28%,#fff4c4 42%,#d6a53a 56%,#7a5710 78%,#f3d97a 100%);
+  background-size:100% 100%,260% 260%;background-position:0 0,calc(var(--px)*1%) calc(var(--py)*1%)}
+.pat-oro + .fx-glare{mix-blend-mode:overlay}
+
+/* ---- Solo en la vista ampliada: relieve con luz real (SVG), canto brillante y sombra al lado contrario ---- */
+.fx-relief{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;mix-blend-mode:screen;opacity:0;transition:opacity .5s}
+.photo.lit .fx-relief{opacity:.4}
+.fx-edge{position:absolute;inset:0;border-radius:inherit;pointer-events:none;padding:2px;opacity:0;transition:opacity .5s;z-index:3;
+  background:conic-gradient(from var(--ang,0deg),rgba(255,255,255,.95),rgba(255,255,255,.15) 18%,transparent 30%,transparent 70%,rgba(255,255,255,.15) 82%,rgba(255,255,255,.95));
+  -webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;
+          mask:linear-gradient(#000 0 0) content-box exclude,linear-gradient(#000 0 0)}
+.photo.lit .fx-edge{opacity:.9}
+.zoom .photo{box-shadow:calc(var(--sx,0)*1px) calc(var(--sy,24)*1px) 60px -18px rgba(0,0,0,.9)}
+@media (prefers-reduced-motion:reduce){.fx-relief,.fx-edge{display:none}}
+
 .pocket.agotada .photo{cursor:zoom-in}
 .pocket.agotada .fx{display:none}
 @media (prefers-reduced-motion:reduce){.photo,.photo.tilting{transform:none;transition:none}.fx{display:none}}
@@ -400,7 +429,7 @@ function cardHTML(c){
   const on = picked.has(c.id);
   const out = c.qty <= 0;
   return `<article class="pocket ${isFeatured(c)?'holo':''} ${out?'agotada':''}">${out?'<span class="stamp">Agotada</span>':''}
-    ${IMGS[c.id] ? `<div class="photo ${foil(c)}" data-zoom="${c.id}" role="button" tabindex="0" aria-label="Ampliar ${esc(c.name)} ${esc(c.numLabel)}">${IDIOMAS.badgeHTML(c.idioma)}<div class="photo-clip"><img src="${IMGS[c.id]}" alt="${esc(c.name)} ${esc(c.numLabel)}" loading="lazy" decoding="async">${fxLayers(c)}</div></div>` : `<div class="card" style="--c:var(--t-${c.type})" role="img" aria-label="${esc(c.name)}, tipo ${TYPE_LABEL[c.type]}">${IDIOMAS.badgeHTML(c.idioma)}
+    ${IMGS[c.id] ? `<div class="photo ${foil(c)}" style="--img:url('${IMGS[c.id]}')" data-zoom="${c.id}" role="button" tabindex="0" aria-label="Ampliar ${esc(c.name)} ${esc(c.numLabel)}">${IDIOMAS.badgeHTML(c.idioma)}<div class="photo-clip"><img src="${IMGS[c.id]}" alt="${esc(c.name)} ${esc(c.numLabel)}" loading="lazy" decoding="async">${fxLayers(c)}</div></div>` : `<div class="card" style="--c:var(--t-${c.type})" role="img" aria-label="${esc(c.name)}, tipo ${TYPE_LABEL[c.type]}">${IDIOMAS.badgeHTML(c.idioma)}
       <div class="card-in">
         <div class="card-name"><span>${esc(c.name)}</span></div>
         <div class="card-art"><svg viewBox="0 0 24 24" aria-hidden="true">${ICONS[c.type]}</svg></div>
@@ -767,8 +796,26 @@ const foil = c => {
   if (cols.includes(slugCol(c.set)) || cols.includes(edicion(c))) return 'foil-strong';
   return FOIL_TAGS.includes(c.tag) || /\s(ex|EX|V|VSTAR|V-ASTRO|VMAX|GX)$/.test(c.name) ? 'foil-strong' : 'foil-soft';
 };
-const fxLayers = c => foil(c) === 'foil-strong' ? '<span class="fx fx-holo"></span><span class="fx fx-spark"></span><span class="fx fx-glare"></span>'
-  : foil(c) === 'foil-soft' ? '<span class="fx fx-glare"></span>' : '';
+// Patrón del foil (campo «foil» de la carta; si falta: «textura» en ilustraciones especiales, «holo» en el resto) y zona
+// (toda la carta en textura/oro, ilustraciones especiales y ex/V/VSTAR/V-ASTRO/VMAX/GX; si no, solo el recuadro de la ilustración).
+const FOILS = ['holo', 'textura', 'cosmos', 'oro'];
+const foilType = c => FOILS.includes(c.foil) ? c.foil : c.tag === 'Ilustración especial' ? 'textura' : 'holo';
+const foilZone = c => ['textura', 'oro'].includes(foilType(c)) || c.tag === 'Ilustración especial' || /\s(ex|EX|V|VSTAR|V-ASTRO|VMAX|GX)$/.test(c.name) ? 'todo' : 'arte';
+const fxLayers = (c, zoomed) => {
+  const k = foil(c);
+  if (k === 'foil-none') return '';
+  if (k === 'foil-soft') return '<span class="fx fx-glare"></span>';
+  const t = foilType(c);
+  return `<span class="fx fx-foil pat-${t} zona-${foilZone(c)}">${t === 'cosmos' ? '<i></i><i></i><i></i>' : ''}</span><span class="fx fx-glare"></span>`
+    + (zoomed ? reliefSVG(c) : '');
+};
+// Relieve con luz real (solo ampliada): la foto como mapa de alturas (luminancia) iluminada por un foco que sigue al puntero.
+const reliefSVG = c => `<svg class="fx-relief" aria-hidden="true" preserveAspectRatio="none"><defs><filter id="relieve" x="0" y="0" width="100%" height="100%" color-interpolation-filters="sRGB">
+  <feImage href="${IMGS[c.id]}" x="0" y="0" width="100%" height="100%" preserveAspectRatio="none" result="foto"/>
+  <feColorMatrix in="foto" type="luminanceToAlpha" result="alto"/>
+  <feGaussianBlur in="alto" stdDeviation=".7" result="suave"/>
+  <feSpecularLighting in="suave" surfaceScale="3.2" specularConstant=".8" specularExponent="34" lighting-color="#fff" result="brillo"><fePointLight x="0" y="0" z="260"/></feSpecularLighting>
+  <feComposite in="brillo" in2="SourceGraphic" operator="in"/></filter></defs><rect width="100%" height="100%" fill="#fff" filter="url(#relieve)"/></svg>`;
 
 const tilt = {el: null, x: .5, y: .5, max: 13, raf: 0};
 function paintTilt(){
@@ -777,6 +824,16 @@ function paintTilt(){
   el.style.setProperty('--ry', ((tilt.x - .5) * 2 * tilt.max).toFixed(2) + 'deg');
   el.style.setProperty('--px', (tilt.x * 100).toFixed(1));
   el.style.setProperty('--py', (tilt.y * 100).toFixed(1));
+  el.style.setProperty('--s1', (.5 + .5 * Math.sin(tilt.x * 9.4)).toFixed(2));
+  el.style.setProperty('--s2', (.5 + .5 * Math.sin(tilt.y * 8.2 + 2)).toFixed(2));
+  el.style.setProperty('--s3', (.5 + .5 * Math.sin((tilt.x + tilt.y) * 7 + 4)).toFixed(2));
+  if (el === zPhoto){
+    el.style.setProperty('--ang', (Math.atan2(tilt.y - .5, tilt.x - .5) * 180 / Math.PI + 90).toFixed(1) + 'deg');
+    el.style.setProperty('--sx', ((.5 - tilt.x) * 2 * 26).toFixed(1));          // sombra al lado contrario de la inclinación
+    el.style.setProperty('--sy', (24 + (.5 - tilt.y) * 2 * 22).toFixed(1));
+    const light = el.querySelector('fePointLight');
+    if (light){ const r = el.getBoundingClientRect(); light.setAttribute('x', (tilt.x * r.width).toFixed(0)); light.setAttribute('y', (tilt.y * r.height).toFixed(0)); }
+  }
 }
 function follow(el, e, max){
   const r = el.getBoundingClientRect();
@@ -791,6 +848,7 @@ function settle(el, keepLit){
   el.classList.remove('tilting');
   ['--rx', '--ry'].forEach(p => el.style.setProperty(p, '0deg'));
   el.style.setProperty('--px', 50); el.style.setProperty('--py', 50);
+  if (el === zPhoto){ el.style.setProperty('--sx', 0); el.style.setProperty('--sy', 24); }
   clearTimeout(el._off);
   if (!keepLit) el._off = setTimeout(() => el.classList.remove('lit'), 550);
 }
@@ -828,11 +886,13 @@ function openZoom(id, from){
   const c = CARDS.find(x => x.id === id); if (!c || !IMGS[c.id]) return;
   zoomId = id; zoomFrom = from || null;
   zPhoto.className = `photo ${foil(c)}`;
-  zPhoto.innerHTML = `${IDIOMAS.badgeHTML(c.idioma)}<div class="photo-clip"><img src="${IMGS[c.id]}" alt="${esc(c.name)} ${esc(c.numLabel)}">${fxLayers(c)}</div>`;
+  zPhoto.style.setProperty('--img', `url('${IMGS[c.id]}')`);
+  zPhoto.innerHTML = `${IDIOMAS.badgeHTML(c.idioma)}<div class="photo-clip"><img src="${IMGS[c.id]}" alt="${esc(c.name)} ${esc(c.numLabel)}">${fxLayers(c, true)}</div>`
+    + (foil(c) === 'foil-strong' ? '<span class="fx-edge"></span>' : '');
   zPhoto.style.filter = c.qty <= 0 ? 'grayscale(1) brightness(.6)' : '';
   zoomInfo(c);
   zoom.hidden = false; document.documentElement.style.overflow = 'hidden';
-  if (canTilt(zPhoto)){ zPhoto.classList.add('lit'); }   // efecto visible; se mueve con el ratón o el dedo
+  if (canTilt(zPhoto)){ zPhoto.classList.add('lit'); tilt.el = zPhoto; tilt.x = .5; tilt.y = .35; tilt.max = 15; paintTilt(); tilt.el = null; }   // efecto visible desde el principio
   document.getElementById('zoom-x').focus({preventScroll: true});
 }
 function closeZoom(){

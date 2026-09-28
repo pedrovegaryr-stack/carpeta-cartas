@@ -57,6 +57,12 @@ Habla con Jose en español, con pasos claros. Antes de cualquier acción irrever
 - `url`: página del producto en Cardmarket **sin parámetros**. Junto con `idioma` es la clave para cruzar con las ofertas de Jose.
 - `type`: `grass fire water lightning psychic fighting darkness metal dragon colorless trainer code` (solo decorativo si falta la foto; mira el símbolo de energía de la carta).
 - `tag`: `""`, `"ex"`, `"Ilustración especial"` (número mayor que el total de la colección o arte completo), `"Classic"`.
+- `foil` (opcional, solo cartas con efecto fuerte): patrón del foil en la web: `"holo"` (bandas arcoíris verticales),
+  `"textura"` (líneas finas grabadas en diagonal), `"cosmos"` (destellos pequeños) u `"oro"` (secretas doradas). Si falta:
+  `textura` en `Ilustración especial`, `holo` en el resto. Zona: toda la carta en textura/oro, ilustraciones especiales y
+  ex/V/VSTAR/V-ASTRO/VMAX/GX; en las demás solo el recuadro de la ilustración. El brillo sigue la luminosidad de la foto
+  (intenso en lo claro, casi nulo en lo oscuro). En la vista ampliada, además: relieve con luz real (filtro SVG), canto brillante
+  y sombra al lado contrario. Pregunta a Jose el `foil` de las cartas cosmos u oro al añadirlas.
 - `holo` (opcional): `"fuerte"`, `"suave"` o `"ninguno"`. Si existe, manda sobre las reglas del efecto de la web (solo para casos concretos).
   Efecto de las fotos en la web (3D al pasar el ratón, ampliada al pulsar), por orden: agotada → ninguno; campo `holo`; colección en
   `config.json` > `colecciones_holo` (todas sus cartas son holo; se compara con `set` y con la edición de la url, así las Classic
