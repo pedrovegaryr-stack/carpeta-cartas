@@ -16,7 +16,7 @@ Habla con Jose en español, con pasos claros. Antes de cualquier acción irrever
 | `index.html` | Catálogo público. Lee `cartas.json`, `stock.csv`, `config.json` y `suelo.csv` al cargar. | Casi nunca |
 | `informe.html` | Página privada (no enlazada): mis precios frente al suelo, exportar PDF/Excel y botón de rebajas. | Casi nunca |
 | `intercambio.html` | Página privada (no enlazada): herramienta de intercambios (Recibo/Doy, balanza, «Cuadrar», PDF de propuesta). Lee `cartas.json`, `stock.csv` y `suelo.csv`. | Casi nunca |
-| `cartas.json` | **Catálogo**: datos fijos de cada carta + lista de cartas **deseadas** (buscadas + candidatas para cambios). | Claude Code al añadir cartas |
+| `cartas.json` | **Catálogo**: datos fijos de cada carta + lista de cartas **deseadas** (mi colección de Pikachu + candidatas para cambios). | Claude Code al añadir cartas |
 | `stock.csv` | **Precio y cantidad** de cada carta (manda sobre `cartas.json`). Cantidad 0 = «Agotada». | Jose o Claude Code |
 | `suelo.csv` | Precio más barato de otros vendedores en Cardmarket (idioma de la carta, NM). | Claude Code |
 | `suelo_pendiente.csv` | Suelos mirados al listar cartas que aún no tienen id (`url;minimo;ofertas;fecha`). Pasan a `suelo.csv` en el Flujo B. | Claude Code |
@@ -37,7 +37,7 @@ Habla con Jose en español, con pasos claros. Antes de cualquier acción irrever
   "deseadas": [
     {"num": "023", "nombre": "Pikachu", "numLabel": "023/128", "set": "30th Celebration",
      "url": "https://www.cardmarket.com/es/Pokemon/Products/Singles/30th-Celebration/Pikachu-30C023",
-     "img": "img/w023.webp", "attack": "Thunder Shock", "tag": "", "buscada": true,
+     "img": "img/w023.webp", "attack": "Thunder Shock", "tag": "", "en_coleccion": true,
      "suelo": 0.54, "ofertas": "50+", "fecha": "27/09/2026"}
   ],
   "coleccion_30c": [
@@ -59,9 +59,10 @@ Habla con Jose en español, con pasos claros. Antes de cualquier acción irrever
 - `tag`: `""`, `"ex"`, `"Ilustración especial"` (número mayor que el total de la colección o arte completo), `"Classic"`.
 - `toploader`: `true` si el comentario de la oferta menciona toploader.
 - `price` / `qty`: valor inicial; los reales vienen de `stock.csv`.
-- `deseadas` (Flujo D): cartas que Jose aceptaría recibir. `buscada: true` = sale en la web pública («Busco para intercambio»);
-  `false` = solo candidata para cuadrar cambios en `intercambio.html`. Incluye también cartas que Jose ya tiene en stock
-  (la página las marca sola como «ya tengo» / «me falta» cruzando `url` con el stock). `attack`: ataque(s) de la carta, para distinguir versiones.
+- `deseadas` (Flujo D): cartas que Jose aceptaría recibir. **`en_coleccion`** lo controla Jose y es independiente de su stock a la venta:
+  `true` = ya la tiene en su colección («Ya tengo»), `false` = le falta («Me falta»; son las que salen en la web pública,
+  «Busco para intercambio»), `null` = neutra (sin etiqueta), para una candidata que no forme parte de su colección.
+  `attack`: ataque(s) de la carta, para distinguir versiones.
   `suelo` / `ofertas` / `fecha`: suelo en español NM (mismas reglas del Flujo C); `suelo` es `null` si no hay ofertas.
   Fotos en `img/w<num>.webp` (380 px, calidad 78); si la carta ya está en el stock, usa su foto `img/<id>.webp`.
 - `coleccion_30c`: **todas** las cartas de 30th Celebration (191: 128 normales, 30 ilustraciones especiales `tipo: especial`,
@@ -180,7 +181,7 @@ Recalcula las páginas con los datos del momento; a 28/09/2026 eran:
 | Opción | Dónde se guarda | Páginas | Con Jose delante | Desatendido |
 |---|---|---|---|---|
 | Mi stock (cantidad > 0) | `suelo.csv` | 92 | ~45 min | ~1 h 20 min |
-| Deseadas | `cartas.json` > `deseadas` | 32 | ~15 min | ~30 min |
+| Deseadas | `cartas.json` > `deseadas` | 30 | ~15 min | ~30 min |
 | 30th Celebration completa | `cartas.json` > `coleccion_30c` | 191 | ~1 h 30 min | ~2 h 45 min |
 | Pokémon GO (inglés) | `data/colecciones/pgo.json` | 109 | ~50 min | ~1 h 40 min |
 | Astros Brillantes (español) | `data/colecciones/brs.json` | 245 | ~1 h 55 min | ~3 h 45 min |
@@ -207,17 +208,21 @@ más de una hora: avisa a Jose antes y guarda el progreso para poder seguir si s
 
 ## Flujo D — Intercambios (deseadas + `intercambio.html`)
 
-- Lista `deseadas` de `cartas.json` (formato arriba). Ahora: **todos los Pikachu 023–052 y Pikachu ex 053–054 de 30th Celebration**,
-  también los que Jose ya tiene. Las 5 `buscada: true` son las que busca de verdad. Para añadir una: url del producto, foto a `img/w<num>.webp`
-  (imagen de `og:image` o del listado masivo) y su suelo (reglas del Flujo C). Marca `buscada: true` solo si Jose la busca de verdad.
-- Si Jose consigue una buscada, pon `buscada: false` (sigue como candidata).
+- Lista `deseadas` de `cartas.json` (formato arriba): **los Pikachu 023–052 de 30th Celebration**, que son la colección de Jose.
+  Los Pikachu ex 053–054 **no** están en `deseadas` (no forman parte de su colección; siguen en `coleccion_30c`). A 28/09/2026 le faltan
+  **046, 047 y 050** (`en_coleccion: false`); el resto de 023–052 los tiene (`true`). Para añadir una deseada: url del producto,
+  foto a `img/w<num>.webp` (imagen de `og:image` o del listado masivo), su suelo (reglas del Flujo C) y `en_coleccion` según diga Jose.
+- **Cuando Jose diga «ya tengo el X»** → pon `en_coleccion: true` en la deseada X; **«me falta el X»** → `en_coleccion: false`.
+  Después **commit y push** sin esperar más confirmación (es su propia lista; cambia la sección pública «Busco para intercambio»).
+  Si X no está en `deseadas` o es ambiguo (varias versiones), pregunta antes.
 - `intercambio.html` (privada, sin enlace desde la web; mismo estilo que `informe.html`):
   - «Recibo» = deseadas, «Doy» = stock con cantidad > 0. Valor de cada carta = su suelo en español (si una carta del stock no tiene suelo,
     su precio de venta; si una deseada no tiene suelo, 0). Cualquier valor se puede cambiar a mano (sale con `*` en el PDF).
   - Balanza: totales y diferencia en € y en % sobre lo que doy.
   - «Cuadrar»: busca combinaciones de 1–3 cartas que acerquen la diferencia a 0 (de las deseadas si recibo menos; del stock si doy menos)
     y enseña las 3 mejores (distintas entre sí) con botón «Añadir». Orden: **primero la que más se acerca a 0** (al céntimo);
-    si empatan, la que tenga más cartas «me falta» (en Recibo) o más bulk < 1 € (en Doy); luego la de menos cartas.
+    si empatan, la que tenga más cartas «me falta» (en Recibo; **solo las de `en_coleccion: false`**, las demás son moneda de cambio
+    igual que el resto) o más bulk < 1 € (en Doy); luego la de menos cartas.
     Ej.: si faltan 1,40 € y un Pikachu que ya tengo vale 1,40 €, sale el primero.
   - Opción «Cuadrar usando mis cartas de hasta X €» (2 € por defecto; vacío o 0 = sin límite): en el lado «Doy» no propone cartas más caras.
   - Campo «Nombre de la otra persona»: las columnas pasan a «Recibo de [nombre]» / «Doy a [nombre]».

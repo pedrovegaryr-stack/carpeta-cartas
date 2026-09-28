@@ -200,7 +200,7 @@ h2{font:800 22px/1.1 var(--display);margin:0}
 
 <script src="idiomas.js"></script>
 <script>
-/* Datos: ITEMS[key] = {key, side, name, numLabel, set, url, img, floor, date, avail, price, wanted} */
+/* Datos: ITEMS[key] = {key, side, name, numLabel, set, url, img, floor, date, avail, price, coll, idioma} */
 const ITEMS = {};
 const SIDES = ['recibo', 'doy'];
 let sel = {recibo: [], doy: []};   // [{key, qty}]
@@ -227,7 +227,9 @@ const left = key => ITEMS[key].side === 'doy' ? ITEMS[key].avail - selQty('doy',
 const total = side => sel[side].reduce((a, s) => a + val(s.key) * s.qty, 0);
 const label = it => [it.numLabel, it.set].filter(Boolean).join(' · ');
 const langTag = it => IDIOMAS.code(it.idioma) !== 'es' ? `<span class="tag">${IDIOMAS.name(it.idioma)}</span>` : '';
-const marks = it => it.side !== 'recibo' ? langTag(it) : langTag(it) + (it.wanted ? '<span class="tag">Buscada</span>' : '') + (it.have ? '<span class="tag tengo">Ya tengo</span>' : '<span class="tag falta">Me falta</span>');
+// «Me falta» / «Ya tengo» salen de deseadas.en_coleccion (lo controla Jose): false = me falta, true = ya la tengo, null = neutra.
+const falta = it => it.coll === false, tengo = it => it.coll === true;
+const marks = it => langTag(it) + (it.side !== 'recibo' ? '' : falta(it) ? '<span class="tag falta">Me falta</span>' : tengo(it) ? '<span class="tag tengo">Ya tengo</span>' : '');
 
 const who = () => meta.nombre.trim();
 const colName = side => side === 'recibo' ? (who() ? `Recibo de ${who()}` : 'Recibo') : (who() ? `Doy a ${who()}` : 'Doy');
@@ -262,12 +264,10 @@ async function load(){
   try { const r = await fetch('stock.csv', {cache:'no-store'}); if (r.ok) parseCsv(await r.text()).forEach(p => stock.set(p[0].trim(), {price:num(p[2]), qty:parseInt(p[3],10)})); } catch(e){}
   try { const r = await fetch('suelo.csv', {cache:'no-store'}); if (r.ok) parseCsv(await r.text()).forEach(p => floors.set(p[0].trim(), {min:num(p[1]), date:(p[3]||'').trim()})); } catch(e){}
 
-  const inStock = new Set();
   (data.cartas || []).forEach(c => {
     const s = stock.get(String(c.id)) || {}, f = floors.get(String(c.id)) || {};
     const qty = Number.isFinite(s.qty) ? s.qty : c.qty;
     if (!(qty > 0)) return;
-    inStock.add(c.url);
     const key = 's' + c.id;
     ITEMS[key] = {key, side:'doy', name:c.name, numLabel:c.numLabel === 'Código' ? '' : c.numLabel, set:c.set, url:c.url, img:c.img,
       floor:f.min ?? null, date:f.date || '', avail:qty, price:s.price ?? c.price, tag:c.tag, idioma:c.idioma || 'es'};
@@ -275,7 +275,7 @@ async function load(){
   (data.deseadas || []).forEach(d => {
     const key = 'd' + (d.url || d.num);
     ITEMS[key] = {key, side:'recibo', name:d.nombre || 'Pikachu', numLabel:d.numLabel || d.num, set:d.set || '', url:d.url, img:d.img,
-      floor:d.suelo ?? null, date:d.fecha || '', avail:Infinity, wanted:!!d.buscada, des:true, have:inStock.has(d.url), tag:d.tag, num:d.num};
+      floor:d.suelo ?? null, date:d.fecha || '', avail:Infinity, coll:d.en_coleccion ?? null, des:true, tag:d.tag, num:d.num};
   });
   // Colección completa de 30th Celebration: posibles cartas de la otra persona (misma clave que la deseada si coincide la url).
   // Otras colecciones completas (data/colecciones/*.json): mismo formato de carta, idioma de la colección.
@@ -286,7 +286,7 @@ async function load(){
       const key = 'd' + c.url;
       if (ITEMS[key]) { ITEMS[key].col = true; ITEMS[key].num = c.num; }
       else ITEMS[key] = {key, side:'recibo', name:c.nombre, numLabel:c.numLabel || c.num || '', set, url:c.url, img:c.img,
-        floor:c.suelo ?? null, date:c.fecha || '', avail:Infinity, wanted:false, des:false, col:true, have:inStock.has(c.url), tag:c.tag || '', num:c.num || '', idioma};
+        floor:c.suelo ?? null, date:c.fecha || '', avail:Infinity, coll:null, des:false, col:true, tag:c.tag || '', num:c.num || '', idioma};
       keys.push(key);
     });
     if (keys.length) COLS.push({id, nombre, idioma, ejemplo, keys});
@@ -357,7 +357,7 @@ function renderPick(side){
   let list = Object.values(ITEMS).filter(it => it.side === side);
   if (side === 'recibo'){ const disp = dispSet(); list = list.filter(it => !selQty('recibo', it.key) && (it.des || disp.has(it.key))); }
   if (q) list = list.filter(it => norm(`${it.name} ${it.numLabel} ${it.set}`).includes(q));
-  list.sort((a, b) => (b.wanted|0) - (a.wanted|0) || (a.have|0) - (b.have|0) || a.name.localeCompare(b.name, 'es') || String(a.numLabel).localeCompare(String(b.numLabel), 'es', {numeric:true}));
+  list.sort((a, b) => falta(b) - falta(a) || tengo(a) - tengo(b) || a.name.localeCompare(b.name, 'es') || String(a.numLabel).localeCompare(String(b.numLabel), 'es', {numeric:true}));
   document.getElementById('pick-' + side).innerHTML = list.length ? list.map(it => {
     const l = left(it.key);
     return `<button class="opt" type="button" data-add="${esc(it.key)}" ${l <= 0 ? 'disabled' : ''}>
@@ -397,7 +397,7 @@ SIDES.forEach(side => {
     const key = inp.closest('[data-key]').dataset.key, v = num(inp.value);
     if (v == null || v < 0) { render(); return; }
     if (Math.abs(v - baseVal(ITEMS[key])) < 0.005) delete vals[key]; else vals[key] = Math.round(v * 100) / 100;
-    hideSugg(); render();
+    hideSugg(); setTimeout(render);   // después del blur: redibujar dentro de él rompe el foco
   });
 });
 
@@ -429,7 +429,7 @@ function renderDisp(){
   const qn = numKey(q);
   const shown = col.keys.filter(k => (!only || disp.has(k)) && (!q || norm(ITEMS[k].name).includes(q) || (qn && numKey(ITEMS[k].num).startsWith(qn))));
   document.getElementById('disp-grid').innerHTML = shown.length ? shown.map(k => { const it = ITEMS[k], on = disp.has(k), np = it.floor == null;
-    return `<div class="dc ${on ? 'on' : ''} ${np ? 'np' : ''}" role="button" tabindex="0" data-k="${esc(k)}" title="${esc(it.name)} ${esc(it.numLabel)}${it.have ? ' · ya la tengo' : ''}" aria-pressed="${on}">
+    return `<div class="dc ${on ? 'on' : ''} ${np ? 'np' : ''}" role="button" tabindex="0" data-k="${esc(k)}" title="${esc(it.name)} ${esc(it.numLabel)}${tengo(it) ? ' · ya la tengo' : falta(it) ? ' · me falta' : ''}" aria-pressed="${on}">
       ${IDIOMAS.badgeHTML(it.idioma)}<img src="${esc(it.img)}" alt="" loading="lazy"><b>${esc(it.num || '—')}</b>
       ${np ? (on ? `<input class="dv" type="number" min="0" step="0.01" placeholder="€" value="${k in vals ? vals[k].toFixed(2) : ''}" aria-label="Valor a mano de ${esc(it.name)}" title="Sin precio: pon un valor para que «Cuadrar» pueda usarla">` : '<small class="sp">sin precio</small>')
            : `<small>${eur(it.floor)}</small>`}</div>`; }).join('')
@@ -448,7 +448,7 @@ document.getElementById('disp-grid').addEventListener('change', e => {
   const inp = e.target.closest('.dv'); if (!inp) return;
   const k = inp.closest('[data-k]').dataset.k, v = num(inp.value);
   if (v == null || v <= 0) delete vals[k]; else vals[k] = Math.round(v * 100) / 100;
-  hideSugg(); render();
+  hideSugg(); setTimeout(render);
 });
 document.getElementById('disp-cols').addEventListener('click', e => {
   const c = e.target.closest('[data-col]'); if (!c) return;
@@ -534,7 +534,7 @@ function suggest(){
   const allowed = it => side !== 'recibo' || (useDisp ? disp.has(it.key) : it.des);
   const pool = Object.values(ITEMS).filter(it => it.side === side && allowed(it) && left(it.key) > 0 && !taken.has(it.key) && !(it.url && taken.has(it.url)) && val(it.key) <= lim + 1e-9)
                      .map(it => ({key: it.key, v: val(it.key),
-                       worse: side === 'doy' ? val(it.key) >= BULK : useDisp ? (it.have ? 1 : 0) + (/^Pikachu/.test(it.name) ? 0 : 1) : it.have}));
+                       worse: side === 'doy' ? val(it.key) >= BULK : (falta(it) ? 0 : 1) + (useDisp && !/^Pikachu/.test(it.name) ? 1 : 0)}));
   return {R, D, gap, side, lim, useDisp, combos: bestCombos(pool, gap)};
 }
 
@@ -552,7 +552,7 @@ document.getElementById('cuadrar').addEventListener('click', () => {
       const after = side === 'recibo' ? (R + c.sum) - D : R - (D + c.sum);
       return `<div class="combo">
         <div class="pics">${c.cards.map(p => ITEMS[p.key].img ? `<img src="${esc(ITEMS[p.key].img)}" alt="">` : '').join('')}</div>
-        <ul>${c.cards.map(p => `<li><span>${esc(ITEMS[p.key].name)} <span class="note">${esc(ITEMS[p.key].numLabel)}${side === 'recibo' ? (ITEMS[p.key].have ? ' · ya tengo' : ' · me falta') : ''}${IDIOMAS.code(ITEMS[p.key].idioma) !== 'es' ? ' · ' + IDIOMAS.name(ITEMS[p.key].idioma) : ''}</span></span><span class="mono">${eur(p.v)}</span></li>`).join('')}</ul>
+        <ul>${c.cards.map(p => `<li><span>${esc(ITEMS[p.key].name)} <span class="note">${esc(ITEMS[p.key].numLabel)}${side === 'recibo' ? (falta(ITEMS[p.key]) ? ' · me falta' : tengo(ITEMS[p.key]) ? ' · ya tengo' : '') : ''}${IDIOMAS.code(ITEMS[p.key].idioma) !== 'es' ? ' · ' + IDIOMAS.name(ITEMS[p.key].idioma) : ''}</span></span><span class="mono">${eur(p.v)}</span></li>`).join('')}</ul>
         <div class="res">Suma <b class="mono">${eur(c.sum)}</b> · diferencia después: <b class="mono">${Math.abs(after) < 0.005 ? '0,00 €' : (after > 0 ? '+' : '−') + eur(Math.abs(after))}</b></div>
         <button class="btn sm ${i ? '' : 'primary'}" type="button" data-combo="${i}">Añadir</button></div>`;
     }).join('')}</div>`;

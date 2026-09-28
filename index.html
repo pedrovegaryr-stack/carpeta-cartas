@@ -661,7 +661,7 @@ async function loadCatalog(){
   const r = await fetch('cartas.json', {cache:'no-store'});
   const data = await r.json();
   (data.cartas || []).forEach(c => { CARDS.push(c); if (c.img) IMGS[c.id] = c.img; });
-  (data.deseadas ? data.deseadas.filter(w => w.buscada) : (data.buscadas || [])).forEach(w => { const k = 'b' + w.num; if (w.img) IMGS[k] = w.img; WANTED.push({...w, img: w.img ? k : null}); });
+  (data.deseadas ? data.deseadas.filter(w => w.en_coleccion === false) : (data.buscadas || [])).forEach(w => { const k = 'b' + w.num; if (w.img) IMGS[k] = w.img; WANTED.push({...w, img: w.img ? k : null}); });
 }
 async function boot(){
   try { await loadCatalog(); } catch(e){ document.getElementById('empty').hidden = false; document.getElementById('empty').textContent = 'No se pudo cargar el catálogo (cartas.json).'; return; }
