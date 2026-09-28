@@ -801,7 +801,7 @@ document.getElementById('pdf').addEventListener('click', ev => busy(ev.currentTa
       doc.text(fit(gives[side], CW-30), X[side]+3, y+5.4);
       doc.text(eur(side === 'recibo' ? R : D), X[side]+CW-3, y+5.4, {align:'right'});
     });
-    y += 10;
+    y += 11.5;
   }
   async function card(c, x, yy, cw, ih, pic, small){
     if (pic) doc.addImage(pic, 'JPEG', x, yy, cw, ih); else { doc.setFillColor(...soft); doc.rect(x, yy, cw, ih, 'F'); }

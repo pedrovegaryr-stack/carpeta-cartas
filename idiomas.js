@@ -60,11 +60,11 @@
     });
     return cache[c];
   }
-  // Pone la etiqueta en la esquina superior izquierda de una foto del PDF (x, y, ancho de la foto en mm)
+  // Pone la etiqueta en la esquina superior izquierda de una foto del PDF, sobresaliendo del borde (x, y, ancho de la foto en mm)
   async function pdfBadge(doc, l, x, y, photoW){
     const b = await badgePNG(l); if (!b) return;
     const h = Math.max(2.6, Math.min(4.6, photoW * 0.16)), w = h * b.ratio;
-    doc.addImage(b.data, 'PNG', x + h*0.18, y + h*0.18, w, h);
+    doc.addImage(b.data, 'PNG', x - w*0.22, y - h*0.5, w, h);   // medio fuera: no tapa el nombre ni los PV de la carta
   }
 
   // Número de idioma en Cardmarket (?language=N) y filtro de ofertas del suelo: idioma de la carta + Near Mint o mejor
