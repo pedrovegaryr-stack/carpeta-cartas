@@ -73,9 +73,13 @@ Habla con Jose en español, con pasos claros. Antes de cualquier acción irrever
 
 ### `stock.csv` (separador `;`, decimales con punto o coma)
 ```
-id;carta;precio;cantidad
-1;Azumarill 068/128;0.25;2
+id;carta;precio;cantidad;agotada_desde
+1;Azumarill 068/128;0.25;2;
+62;Raikou VIV 50;20.00;0;28/09/2026
 ```
+`agotada_desde` (dd/mm/aaaa): fecha en que la carta pasó a cantidad 0; vacía si hay stock. Durante `dias_agotada` días (en `config.json`,
+14 por defecto) la carta agotada sigue en su sitio en la web (también en Destacadas si lo era), en gris y con el sello «Agotada»;
+después pasa al final de la lista y sale de Destacadas. Los totales, PDF y Excel nunca cuentan las agotadas.
 
 ### `suelo.csv`
 ```
@@ -167,7 +171,10 @@ Convertir a WebP de 380 px de ancho, calidad 78 (Pillow) y guardar como `img/<id
    - **Nueva** → añade entrada a `cartas.json` (ver formato), descarga su foto a `img/<id>.webp`, añádela a `stock.csv`.
      Si su url está en `suelo_pendiente.csv`, pasa esa fila a `suelo.csv` con el id nuevo y quítala de `suelo_pendiente.csv`.
    - **Existente** → actualiza precio y cantidad en `stock.csv` (y en `cartas.json`).
-   - **Está en la web pero ya no en Cardmarket** → cantidad **0** en `stock.csv` (sale como «Agotada»). No la borres.
+   - **Está en la web pero ya no en Cardmarket** → cantidad **0** en `stock.csv` (sale como «Agotada») y `agotada_desde` = fecha de hoy
+     (solo si estaba vacía: no la cambies si ya estaba agotada). No la borres.
+   - **Vuelve a tener stock** una agotada → cantidad nueva y `agotada_desde` vacía.
+   - Lo mismo si Jose dice que ha vendido una carta fuera de Cardmarket («X vendida»): cantidad 0 y `agotada_desde` = hoy.
 3. Si ha cambiado el stock, ofrece regenerar el suelo (Flujo C).
 4. Resumen para Jose: cartas nuevas, precios cambiados, agotadas, total del stock. Tras su OK: `git add -A && git commit && git push`.
 5. Comprueba la web en local antes del push si ha habido cambios grandes: `python -m http.server` y abrir `http://localhost:8000`.
@@ -266,4 +273,5 @@ más de una hora: avisa a Jose antes y guarda el progreso para poder seguir si s
 - La tendencia de la guía de precios mezcla todos los idiomas: en español suele ser distinta.
 - Ofertas en el carrito de un comprador no se pueden borrar hasta que se liberan.
 - Si Cloudflare bloquea, no reintentes en bucle: para y avisa a Jose.
-- No toques `config.json` a mano ni lo sobrescribas al subir archivos.
+- No toques `config.json` a mano ni lo sobrescribas al subir archivos. Excepción: `dias_agotada` (días que una agotada se queda en su sitio)
+  se puede cambiar a mano; `api/modo.js` conserva los campos que no gestiona. Haz `git pull` antes, por si el botón lo acaba de cambiar.

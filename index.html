@@ -304,7 +304,15 @@ const TYPE_LABEL = {grass:'Planta',fire:'Fuego',water:'Agua',lightning:'Eléctri
 
 const eur = n => n.toLocaleString('es-ES',{minimumFractionDigits:2,maximumFractionDigits:2}) + ' €';
 const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
-const isFeatured = c => c.price >= 3 && c.qty > 0;
+// Agotadas: durante los primeros días (config.json > dias_agotada, 14 por defecto) se quedan en su sitio, también en
+// Destacadas, en gris y con el sello; después pasan al final y salen de Destacadas. Totales, PDF y Excel solo cuentan cantidad > 0.
+let CFG = null;
+const DIA = 86400000;
+const diasAgotada = () => Number.isFinite(Number(CFG?.dias_agotada)) ? Number(CFG.dias_agotada) : 14;
+const parseFecha = s => { const m = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/.exec(String(s || '').trim()); return m ? new Date(+m[3], m[2]-1, +m[1]).getTime() : null; };
+const recienAgotada = c => c.qty <= 0 && c.agotadaDesde != null && (Date.now() - c.agotadaDesde) / DIA < diasAgotada();
+const enSuSitio = c => c.qty > 0 || recienAgotada(c);
+const isFeatured = c => c.price >= 3 && enSuSitio(c);
 const live = () => CARDS.filter(c => c.qty > 0);
 
 const FILTERS = [
@@ -378,7 +386,7 @@ function renderGrid(){
   const q = state.q.trim().toLowerCase();
   let list = CARDS.filter(f).filter(c => state.lang === 'all' || lang(c) === state.lang).filter(c => !q || (c.name+' '+c.numLabel+' '+c.set).toLowerCase().includes(q));
   const s = state.sort;
-  list.sort((a,b)=> ((b.qty>0)-(a.qty>0)) || (s==='price-desc' ? b.price-a.price || a.num-b.num
+  list.sort((a,b)=> (enSuSitio(b)-enSuSitio(a)) || (s==='price-desc' ? b.price-a.price || a.num-b.num
                   : s==='price-asc' ? a.price-b.price || a.num-b.num
                   : s==='num' ? a.num-b.num || a.name.localeCompare(b.name)
                   : a.name.localeCompare(b.name,'es')));
@@ -637,11 +645,13 @@ function applyStock(text){
     const price = parseFloat(p[2].trim().replace(',', '.')); const qty = parseInt(p[3].trim(), 10);
     if (!isNaN(price)) c.price = price;
     if (!isNaN(qty)) c.qty = Math.max(0, qty);
+    c.agotadaDesde = parseFecha(p[4]);          // columna agotada_desde (dd/mm/aaaa)
   });
 }
 async function applyMode(){
   let cfg = null;
   try { const r = await fetch('config.json', {cache:'no-store'}); if (r.ok) cfg = await r.json(); } catch(e){}
+  CFG = cfg;
   if (!cfg || cfg.modo !== 'suelo') return;
   let text = '';
   try { const r = await fetch('suelo.csv', {cache:'no-store'}); if (!r.ok) return; text = await r.text(); } catch(e){ return; }
