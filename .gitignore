@@ -1,0 +1,4 @@
+# Registros de ejecución de los scripts de Cardmarket (no se publican)
+data/colecciones/progreso.log
+data/colecciones/*.tmp
+__pycache__/
