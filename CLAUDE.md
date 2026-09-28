@@ -22,6 +22,7 @@ Habla con Jose en español, con pasos claros. Antes de cualquier acción irrever
 | `suelo_pendiente.csv` | Suelos mirados al listar cartas que aún no tienen id (`url;minimo;ofertas;fecha`). Pasan a `suelo.csv` en el Flujo B. | Claude Code |
 | `config.json` | Modo de precios (normal / rebajas). **No lo sobrescribas**: lo gestiona el botón de `informe.html` vía `api/modo.js`. | Botón del informe |
 | `img/<id>.webp` | Foto de cada carta. `img/w<num>.webp` = fotos de cartas deseadas. `img/30c/<código>.webp` = resto de la colección 30th Celebration. | Claude Code |
+| `data/colecciones/<codigo>.json` | Colecciones completas preparadas (`pgo` Pokémon GO en inglés, `brs` Astros Brillantes en español): `codigo`, `nombre`, `idioma`, `filtro` y `cartas` (`num`, `nombre`, `url`, `img`, `suelo`, `ofertas`, `fecha`). Fotos en `img/<codigo>/`. Las genera `data/colecciones/preparar_colecciones.py` (desatendido; log en `progreso.log`, que no se sube). | Claude Code |
 | `idiomas.js` | Banderas en SVG, nombres de idioma y la etiqueta «bandera + código» (web y, como imagen, en los PDF). Lo cargan `index.html`, `informe.html` e `intercambio.html`. | Casi nunca |
 | `api/modo.js` | Función de Vercel que edita `config.json` en GitHub (variables `GITHUB_TOKEN`, `GITHUB_REPO`). | Nunca |
 
@@ -132,6 +133,10 @@ Convertir a WebP de 380 px de ancho, calidad 78 (Pillow) y guardar como `img/<id
      (ignorando las de `USUARIO_CM`) y pon ese precio **+ el % que diga Jose** (0 % si no dice nada), redondeado hacia arriba al céntimo,
      con el **mínimo que diga Jose** (0,25 € por defecto). Si no hay ofertas en español, usa la «regla» para esa carta y avísale.
      **15–20 s entre cartas.** Cómo leer el suelo: ver «Cómo leer el suelo de una carta» en el Flujo C.
+     **Si la colección ya está en `data/colecciones/`** (mismo idioma): mira la `fecha` de sus suelos. Si tienen **menos de 7 días**,
+     úsalos directamente (cruza por `url`, y por número si hace falta) **sin volver a consultar Cardmarket**, y díselo a Jose en la tabla
+     de verificación («suelo del dd/mm»). Si son **más antiguos**, pregúntale si los actualiza antes (lo hace el script con
+     `--actualizar <codigo>`, ver Flujo C) o si usa los que hay.
    - **«manual»**: propón precio para cada carta y Jose decide carta a carta.
 
    Se pueden mezclar, p. ej. «suelo +10 %, mínimo 0,25, pero las de más de 5 € enséñamelas antes»: aplica el modo y separa las excepciones
@@ -167,6 +172,23 @@ Convertir a WebP de 380 px de ancho, calidad 78 (Pillow) y guardar como `img/<id
 5. Comprueba la web en local antes del push si ha habido cambios grandes: `python -m http.server` y abrir `http://localhost:8000`.
 
 ## Flujo C — Suelo («actualiza el suelo»)
+
+**Pregunta siempre primero qué quiere actualizar**, con lo que tarda cada opción (páginas de Cardmarket que hay que abrir;
+~25 s por página y Cloudflare cada ~20 páginas: si Jose lo resuelve al momento son 1–2 min; desatendido, 10 min o más cada vez).
+Recalcula las páginas con los datos del momento; a 28/09/2026 eran:
+
+| Opción | Dónde se guarda | Páginas | Con Jose delante | Desatendido |
+|---|---|---|---|---|
+| Mi stock (cantidad > 0) | `suelo.csv` | 92 | ~45 min | ~1 h 20 min |
+| Deseadas | `cartas.json` > `deseadas` | 32 | ~15 min | ~30 min |
+| 30th Celebration completa | `cartas.json` > `coleccion_30c` | 191 | ~1 h 30 min | ~2 h 45 min |
+| Pokémon GO (inglés) | `data/colecciones/pgo.json` | 109 | ~50 min | ~1 h 40 min |
+| Astros Brillantes (español) | `data/colecciones/brs.json` | 245 | ~1 h 55 min | ~3 h 45 min |
+| Todo (cada carta una sola vez) | todos los anteriores | 549 | ~4 h 30 min | ~8 h |
+
+Una carta que esté en varias listas se consulta una sola vez y se escribe en todas. Para Pokémon GO y Astros Brillantes (o varias a la vez
+y desatendido) usa el script: `python -X utf8 data/colecciones/preparar_colecciones.py --actualizar pgo brs` lanzado en segundo plano
+con el Python real (`C:\Users\Jose\AppData\Local\Programs\Python\Python313\python.exe`, no el acceso directo de WindowsApps).
 
 Para cada carta con cantidad > 0 en `stock.csv`: abre su `url` + `?language=N&minCondition=2` con **el idioma de la carta**
 (`N`: en 1, fr 2, de 3, es 4, it 5, zh 6, ja 7, pt 8, ko 10; está en `IDIOMAS.CM` de `idiomas.js`; los «Código Live» sin filtro de idioma), coge la oferta más barata **ignorando las del propio Jose**
@@ -208,11 +230,17 @@ más de una hora: avisa a Jose antes y guarda el progreso para poder seguir si s
     calculadas sin ella. Las opciones nunca se parten: si no caben en la primera página, van enteras a la segunda.
     Pie: «Enviado por BePokemon · Responde con el número de opción que prefieras (o propón otra)».
   - «Cuadrar» nunca sugiere una carta que ya esté en Recibo o en Doy (se compara por url).
-  - «Cartas disponibles de [nombre]» (en la columna Recibo): rejilla con toda `coleccion_30c` (foto, número, suelo) donde Jose marca
-    con un clic las que tiene la otra persona; buscador por nombre o número; «Pegar números» acepta `012, 047, 88 131` y códigos
-    Classic (`BS 58`); contador «X cartas disponibles · Y €». Se guardan **por persona** (al volver a escribir su nombre se recuperan).
+  - «Cartas disponibles de [nombre]» (en la columna Recibo): **selector de colección** (30th Celebration de `coleccion_30c`, y las de
+    `data/colecciones/`: Pokémon GO en inglés y Astros Brillantes en español), cada una con su rejilla (foto con la bandera de su idioma,
+    número y suelo), buscador y «Pegar números» (acepta `012, 047, 88 131` y códigos como `BS 58` o `TG16`; si un número tiene varias
+    versiones en Cardmarket marca la primera y lo avisa). Las marcadas de todas las colecciones se suman; contador «X cartas disponibles · Y €».
+    Se guardan **por persona** (al volver a escribir su nombre se recuperan). Para añadir otra colección: su JSON en `data/colecciones/`
+    y una línea en la lista de `intercambio.html` (buscar `data/colecciones/pgo.json`).
+  - Cartas **sin suelo**: salen como «sin precio» y «Cuadrar» no las usa hasta que Jose les pone un valor a mano (campo € en la propia
+    carta marcada, o en la lista de Recibo).
   - Si la otra persona tiene disponibles marcadas, «Cuadrar» saca sus opciones **solo de esas** (cualquier carta, no solo Pikachu);
-    en empate, primero las que me faltan y los Pikachu. Si no hay ninguna marcada, usa las deseadas como siempre.
+    usa **todas las marcadas de todas las colecciones**; en empate, primero las que me faltan y los Pikachu. Si no hay ninguna marcada,
+    usa las deseadas como siempre.
     El PDF no enseña la lista de disponibles, solo las opciones.
   - La selección, el nombre, el límite, la opción elegida y las disponibles de cada persona se guardan en el navegador (localStorage).
 

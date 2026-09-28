@@ -5,6 +5,7 @@
 # 3) suelos (primera oferta de otro vendedor que no sea BePokemon, reglas del CLAUDE.md).
 # Guarda el progreso después de cada carta: si se corta, al relanzarlo sigue donde se quedó.
 # Uso: python data/colecciones/preparar_colecciones.py   (log en data/colecciones/progreso.log)
+#      python data/colecciones/preparar_colecciones.py --actualizar pgo brs   (vuelve a consultar el suelo de esas colecciones)
 import html, io, json, os, random, re, sys, time, traceback, urllib.request
 from datetime import datetime
 from PIL import Image
@@ -326,7 +327,16 @@ def main():
             falta = sum(1 for c in data['cartas'] if not os.path.exists(os.path.join(ROOT, c['img'])))
             log(f"{col['nombre']}: {n} fotos nuevas" + (f"; {falta} sin foto (se sacarán de su página al mirar el suelo)" if falta else ''))
 
-        # 3) Suelos
+        # 3) Suelos. Con «--actualizar pgo brs» se vuelven a consultar todos los de esas colecciones.
+        if '--actualizar' in sys.argv:
+            quiero = sys.argv[sys.argv.index('--actualizar') + 1:] or [c['codigo'] for c in COLS]
+            for col in COLS:
+                if col['codigo'] in quiero and not datas[col['codigo']].get('_actualizando'):
+                    for c in datas[col['codigo']]['cartas']:
+                        c['fecha'] = ''
+                    datas[col['codigo']]['_actualizando'] = True   # si se corta, al relanzar sigue sin volver a empezar
+                    save(datas[col['codigo']])
+                    log(f"{col['nombre']}: se vuelven a consultar todos los suelos")
         for col in COLS:
             data = datas[col['codigo']]
             todo = [c for c in data['cartas'] if not c.get('fecha')]
@@ -347,6 +357,9 @@ def main():
                 save(data)
                 log(f"  {col['codigo']} {i}/{len(todo)}  {c['num']} {c['nombre']}: "
                     + (f"{mn:.2f} € ({of} ofertas)" if mn is not None else 'sin ofertas de otros vendedores'))
+    for data in datas.values():
+        if data.pop('_actualizando', None):
+            save(data)
     log('=== TERMINADO: las dos colecciones tienen listado, fotos y suelo ===')
 
 

@@ -123,6 +123,14 @@ h2{font:800 22px/1.1 var(--display);margin:0}
 .dc.on{border-color:var(--good);background:rgba(111,194,138,.12)} .dc.on img{opacity:1}
 .dc.on::after{content:'✓';position:absolute;top:6px;right:6px;width:18px;height:18px;border-radius:50%;background:var(--good);color:#0f2a1a;font:800 12px/18px var(--body)}
 .dc:hover img{opacity:1}
+.dc .lang{top:7px;left:7px;font-size:9.5px;padding:1px 5px 1px 2px;gap:3px}.dc .lang .lang-flag{width:13px;height:9px}
+.dc small.sp{color:var(--bad);font-weight:700}
+.dc .dv{width:100%;min-width:0;background:var(--pocket);color:var(--ink);border:1px solid var(--bad);border-radius:5px;padding:2px 4px;font:11px var(--mono);text-align:center}
+.disp-cols{display:flex;gap:6px;flex-wrap:wrap}
+.disp-cols .chip{font:600 12.5px var(--body);color:var(--muted);background:transparent;border:1px solid var(--edge);border-radius:999px;padding:6px 11px;cursor:pointer;display:inline-flex;align-items:center}
+.disp-cols .chip[aria-pressed="true"]{color:#1a1406;background:var(--gold);border-color:var(--gold)}
+.disp-cols .chip .lang-flag{width:15px;height:10px;border-radius:2px;margin-right:6px;box-shadow:0 0 0 .5px rgba(0,0,0,.3)}
+.disp-cols .chip .n{margin-left:6px;font:600 11px var(--mono);opacity:.75}
 .toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:var(--ink);color:#10202a;font-weight:700;padding:10px 14px;border-radius:8px;font-size:13px}
 @media (max-width:860px){ .cols{grid-template-columns:1fr} .combos{grid-template-columns:1fr} }
 @media (max-width:560px){ .scale-row{grid-template-columns:1fr 1fr} .diff{grid-column:1/-1;order:3} .tot b{font-size:22px} }
@@ -159,7 +167,8 @@ h2{font:800 22px/1.1 var(--display);margin:0}
       <details class="disp" id="disp">
         <summary><b id="disp-title">Cartas disponibles</b><span id="disp-count">0 cartas disponibles · 0,00 €</span></summary>
         <div class="disp-body">
-          <p class="note" style="margin:0">30th Celebration completa. Marca con un clic las cartas que tiene para cambiar: «Cuadrar» solo propondrá esas.</p>
+          <p class="note" style="margin:0">Elige la colección y marca con un clic las cartas que tiene para cambiar. Las marcadas de todas las colecciones se suman y «Cuadrar» solo propondrá esas. Las cartas «sin precio» no se usan hasta que les pongas un valor.</p>
+          <div class="disp-cols" id="disp-cols" role="group" aria-label="Colección"></div>
           <div class="disp-tools">
             <input type="text" id="disp-paste" placeholder="Pegar números: 012, 047, 088, 131" autocomplete="off">
             <button class="btn sm" type="button" id="disp-mark">Marcar</button>
@@ -167,7 +176,7 @@ h2{font:800 22px/1.1 var(--display);margin:0}
           <div class="disp-tools">
             <input type="search" id="disp-q" placeholder="Buscar por nombre o número…" autocomplete="off">
             <label class="lim"><input type="checkbox" id="disp-only"> Solo marcadas</label>
-            <button class="btn sm" type="button" id="disp-clear">Desmarcar todas</button>
+            <button class="btn sm" type="button" id="disp-clear">Desmarcar esta colección</button>
           </div>
           <div class="disp-msg" id="disp-msg"></div>
           <div class="disp-grid" id="disp-grid"></div>
@@ -200,7 +209,7 @@ let vals = {};                      // valores cambiados a mano: key -> €
 // y la última combinación añadida con «Cuadrar» ({side, chosen:[keys], alts:[[keys]…]}) para el PDF.
 // disp: cartas disponibles de cada persona (clave = nombre normalizado) -> [keys de la colección]
 let meta = {nombre: '', limite: 2, elegida: null, disp: {}};
-const COL = [];                     // keys de coleccion_30c en orden
+const COLS = [];                    // colecciones para marcar disponibles: {id, nombre, idioma, ejemplo, keys}
 const BULK = 1;                     // por debajo de 1 € cuenta como bulk
 
 const pctTxt = p => Math.abs(p).toLocaleString('es-ES',{maximumFractionDigits: Math.abs(p) < 10 ? 1 : 0}) + ' %';
@@ -217,7 +226,8 @@ const selQty = (side, key) => (sel[side].find(s => s.key === key) || {}).qty || 
 const left = key => ITEMS[key].side === 'doy' ? ITEMS[key].avail - selQty('doy', key) : Infinity;
 const total = side => sel[side].reduce((a, s) => a + val(s.key) * s.qty, 0);
 const label = it => [it.numLabel, it.set].filter(Boolean).join(' · ');
-const marks = it => it.side !== 'recibo' ? (IDIOMAS.code(it.idioma) !== 'es' ? `<span class="tag">${IDIOMAS.name(it.idioma)}</span>` : '') : (it.wanted ? '<span class="tag">Buscada</span>' : '') + (it.have ? '<span class="tag tengo">Ya tengo</span>' : '<span class="tag falta">Me falta</span>');
+const langTag = it => IDIOMAS.code(it.idioma) !== 'es' ? `<span class="tag">${IDIOMAS.name(it.idioma)}</span>` : '';
+const marks = it => it.side !== 'recibo' ? langTag(it) : langTag(it) + (it.wanted ? '<span class="tag">Buscada</span>' : '') + (it.have ? '<span class="tag tengo">Ya tengo</span>' : '<span class="tag falta">Me falta</span>');
 
 const who = () => meta.nombre.trim();
 const colName = side => side === 'recibo' ? (who() ? `Recibo de ${who()}` : 'Recibo') : (who() ? `Doy a ${who()}` : 'Doy');
@@ -268,17 +278,28 @@ async function load(){
       floor:d.suelo ?? null, date:d.fecha || '', avail:Infinity, wanted:!!d.buscada, des:true, have:inStock.has(d.url), tag:d.tag, num:d.num};
   });
   // Colección completa de 30th Celebration: posibles cartas de la otra persona (misma clave que la deseada si coincide la url).
-  (data.coleccion_30c || []).forEach(c => {
-    const key = 'd' + c.url;
-    if (ITEMS[key]) { ITEMS[key].col = true; ITEMS[key].num = c.num; }
-    else ITEMS[key] = {key, side:'recibo', name:c.nombre, numLabel:c.numLabel, set:'30th Celebration', url:c.url, img:c.img,
-      floor:c.suelo ?? null, date:c.fecha || '', avail:Infinity, wanted:false, des:false, col:true, have:inStock.has(c.url), tag:c.tag, num:c.num};
-    COL.push(key);
-  });
+  // Otras colecciones completas (data/colecciones/*.json): mismo formato de carta, idioma de la colección.
+  const langOf = name => Object.keys(IDIOMAS.NAMES).find(k => IDIOMAS.NAMES[k] === name) || 'es';
+  const addCol = (id, nombre, idioma, ejemplo, cards, set) => {
+    const keys = [];
+    cards.forEach(c => {
+      const key = 'd' + c.url;
+      if (ITEMS[key]) { ITEMS[key].col = true; ITEMS[key].num = c.num; }
+      else ITEMS[key] = {key, side:'recibo', name:c.nombre, numLabel:c.numLabel || c.num || '', set, url:c.url, img:c.img,
+        floor:c.suelo ?? null, date:c.fecha || '', avail:Infinity, wanted:false, des:false, col:true, have:inStock.has(c.url), tag:c.tag || '', num:c.num || '', idioma};
+      keys.push(key);
+    });
+    if (keys.length) COLS.push({id, nombre, idioma, ejemplo, keys});
+  };
+  addCol('30c', '30th Celebration', 'es', '012, 047, 088, BS 58', data.coleccion_30c || [], '30th Celebration');
+  for (const [id, file, ej] of [['pgo', 'data/colecciones/pgo.json', '011, 027, 072'], ['brs', 'data/colecciones/brs.json', '015, 123, TG16']]){
+    try { const r = await fetch(file, {cache:'no-store'}); if (!r.ok) continue; const c = await r.json();
+      addCol(id, c.nombre, langOf(c.idioma), ej, c.cartas || [], c.nombre); } catch(e){}
+  }
   restore();
   const mine = Object.values(ITEMS).filter(i => i.des || i.side === 'doy');
   const nd = mine.filter(i => i.des).length, ns = mine.filter(i => i.side === 'doy').length;
-  st.innerHTML = `<b>${nd}</b> cartas deseadas, <b>${ns}</b> cartas en stock y <b>${COL.length}</b> cartas de 30th Celebration para marcar las disponibles. Valores según el suelo de Cardmarket en español NM${dates(mine) ? ' (consultado el <b>' + esc(dates(mine)) + '</b>)' : ''}.`;
+  st.innerHTML = `<b>${nd}</b> cartas deseadas, <b>${ns}</b> cartas en stock y <b>${COLS.reduce((a, c) => a + c.keys.length, 0)}</b> cartas de ${COLS.length} colecciones (${COLS.map(c => esc(c.nombre)).join(', ')}) para marcar las disponibles. Valores según el suelo de Cardmarket en español NM${dates(mine) ? ' (consultado el <b>' + esc(dates(mine)) + '</b>)' : ''}.`;
   ['scale','cols'].forEach(id => document.getElementById(id).hidden = false);
   document.getElementById('foot').textContent = 'Si una carta de tu stock no tiene suelo, se usa tu precio de venta. Las deseadas sin suelo valen 0 hasta que les pongas valor a mano. Tu selección se guarda en este navegador.';
   render();
@@ -322,7 +343,7 @@ function renderSel(side){
     return `<li class="item" data-key="${esc(s.key)}">
       ${it.img ? `<img src="${esc(it.img)}" alt="">` : '<span></span>'}
       <div><div class="name">${esc(it.name)}${marks(it)}</div>
-        <div class="sub">${esc(label(it))} · suelo ${it.floor == null ? '—' : eur(it.floor)}${edited ? ' · <a href="#" data-reset>volver al suelo</a>' : ''}</div></div>
+        <div class="sub">${esc(label(it))} · ${it.floor == null ? (s.key in vals ? 'sin suelo' : '<b style="color:var(--bad)">sin precio</b>') : 'suelo ' + eur(it.floor)}${edited ? ' · <a href="#" data-reset>volver al suelo</a>' : ''}</div></div>
       <div class="ctl">
         <span class="qty"><button type="button" data-q="-1" aria-label="Una menos">−</button><span>${s.qty}</span><button type="button" data-q="1" aria-label="Una más" ${left(s.key) <= 0 ? 'disabled' : ''}>+</button></span>
         <input type="number" min="0" step="0.01" value="${val(s.key).toFixed(2)}" class="${edited ? 'edited' : ''}" aria-label="Valor de ${esc(it.name)} en euros" title="Valor por carta (€)">
@@ -342,7 +363,7 @@ function renderPick(side){
     return `<button class="opt" type="button" data-add="${esc(it.key)}" ${l <= 0 ? 'disabled' : ''}>
       ${it.img ? `<img src="${esc(it.img)}" alt="" loading="lazy">` : '<span></span>'}
       <span><span class="name">${esc(it.name)}${marks(it)}</span><br><span class="sub">${esc(label(it))}</span></span>
-      <span class="val">${it.floor == null ? '<span class="note">sin suelo</span>' : eur(it.floor)}${side === 'doy' ? `<small>${l} de ${it.avail} disp.</small>` : ''}</span>
+      <span class="val">${it.floor == null ? '<span class="note">sin precio</span>' : eur(it.floor)}${side === 'doy' ? `<small>${l} de ${it.avail} disp.</small>` : ''}</span>
     </button>`;
   }).join('') : '<p class="note">Nada coincide con la búsqueda.</p>';
 }
@@ -384,41 +405,73 @@ document.getElementById('clear').addEventListener('click', () => { sel = {recibo
 document.getElementById('nombre').addEventListener('input', e => { meta.nombre = e.target.value; hideSugg(); render(); });
 document.getElementById('lim').addEventListener('input', e => { const v = num(e.target.value); meta.limite = v != null && v > 0 ? v : 0; hideSugg(); save(); });
 
-/* ---------- Cartas disponibles de la otra persona (por persona) ---------- */
+/* ---------- Cartas disponibles de la otra persona (por persona, varias colecciones) ---------- */
 const pkey = () => norm(who());
 const dispSet = () => new Set(meta.disp[pkey()] || []);
-function setDisp(set){ const k = pkey(); if (set.size) meta.disp[k] = COL.filter(x => set.has(x)); else delete meta.disp[k]; }
+const ALLCOL = () => COLS.flatMap(c => c.keys);
+function setDisp(set){ const k = pkey(); if (set.size) meta.disp[k] = ALLCOL().filter(x => set.has(x)); else delete meta.disp[k]; }
 const numKey = s => String(s).toUpperCase().replace(/[^A-Z0-9]/g, '').replace(/^0+(?=\d)/, '');
+let curCol = '30c';
+const current = () => COLS.find(c => c.id === curCol) || COLS[0];
+const noPrice = k => ITEMS[k].floor == null && !(k in vals);   // sin suelo y sin valor puesto a mano
 
 function renderDisp(){
-  const disp = dispSet(), list = COL.filter(k => disp.has(k));
-  const tot = list.reduce((a, k) => a + val(k), 0);
+  if (!COLS.length) return;
+  const disp = dispSet(), list = ALLCOL().filter(k => disp.has(k));
+  const tot = list.reduce((a, k) => a + val(k), 0), sinPrecio = list.filter(noPrice).length;
   document.getElementById('disp-title').textContent = who() ? `Cartas disponibles de ${who()}` : 'Cartas disponibles de la otra persona';
-  document.getElementById('disp-count').textContent = `${list.length} carta${list.length === 1 ? '' : 's'} disponible${list.length === 1 ? '' : 's'} · ${eur(tot)}`;
+  document.getElementById('disp-count').textContent = `${list.length} carta${list.length === 1 ? '' : 's'} disponible${list.length === 1 ? '' : 's'} · ${eur(tot)}` + (sinPrecio ? ` · ${sinPrecio} sin precio` : '');
+  // Selector de colección: bandera, nombre y cuántas hay marcadas en cada una
+  document.getElementById('disp-cols').innerHTML = COLS.map(c => { const n = c.keys.filter(k => disp.has(k)).length;
+    return `<button class="chip" type="button" data-col="${c.id}" aria-pressed="${c.id === curCol}">${IDIOMAS.flagSVG(c.idioma, 15, 10)}${esc(c.nombre)} <span class="n">${IDIOMAS.code(c.idioma).toUpperCase()} · ${n ? n + ' marcada' + (n === 1 ? '' : 's') : c.keys.length + ' cartas'}</span></button>`; }).join('');
+  const col = current();
   const q = norm(document.getElementById('disp-q').value.trim()), only = document.getElementById('disp-only').checked;
   const qn = numKey(q);
-  const shown = COL.filter(k => (!only || disp.has(k)) && (!q || norm(ITEMS[k].name).includes(q) || (qn && numKey(ITEMS[k].num).startsWith(qn))));
-  document.getElementById('disp-grid').innerHTML = shown.length ? shown.map(k => { const it = ITEMS[k];
-    return `<button class="dc ${disp.has(k) ? 'on' : ''}" type="button" data-k="${esc(k)}" title="${esc(it.name)} ${esc(it.numLabel)}${it.have ? ' · ya la tengo' : ''}" aria-pressed="${disp.has(k)}">
-      <img src="${esc(it.img)}" alt="" loading="lazy"><b>${esc(it.num)}</b><small>${it.floor == null ? 'sin suelo' : eur(it.floor)}</small></button>`; }).join('')
+  const shown = col.keys.filter(k => (!only || disp.has(k)) && (!q || norm(ITEMS[k].name).includes(q) || (qn && numKey(ITEMS[k].num).startsWith(qn))));
+  document.getElementById('disp-grid').innerHTML = shown.length ? shown.map(k => { const it = ITEMS[k], on = disp.has(k), np = it.floor == null;
+    return `<div class="dc ${on ? 'on' : ''} ${np ? 'np' : ''}" role="button" tabindex="0" data-k="${esc(k)}" title="${esc(it.name)} ${esc(it.numLabel)}${it.have ? ' · ya la tengo' : ''}" aria-pressed="${on}">
+      ${IDIOMAS.badgeHTML(it.idioma)}<img src="${esc(it.img)}" alt="" loading="lazy"><b>${esc(it.num || '—')}</b>
+      ${np ? (on ? `<input class="dv" type="number" min="0" step="0.01" placeholder="€" value="${k in vals ? vals[k].toFixed(2) : ''}" aria-label="Valor a mano de ${esc(it.name)}" title="Sin precio: pon un valor para que «Cuadrar» pueda usarla">` : '<small class="sp">sin precio</small>')
+           : `<small>${eur(it.floor)}</small>`}</div>`; }).join('')
     : '<p class="note">Nada coincide con la búsqueda.</p>';
+  document.getElementById('disp-paste').placeholder = `Pegar números de ${col.nombre}: ${col.ejemplo}`;
 }
+function toggleDisp(k){ const disp = dispSet(); disp.has(k) ? disp.delete(k) : disp.add(k); setDisp(disp); hideSugg(); render(); }
 document.getElementById('disp-grid').addEventListener('click', e => {
-  const b = e.target.closest('[data-k]'); if (!b) return;
-  const disp = dispSet(); disp.has(b.dataset.k) ? disp.delete(b.dataset.k) : disp.add(b.dataset.k);
-  setDisp(disp); hideSugg(); render();
+  if (e.target.closest('.dv')) return;                          // escribir el valor no marca/desmarca
+  const b = e.target.closest('[data-k]'); if (b) toggleDisp(b.dataset.k);
+});
+document.getElementById('disp-grid').addEventListener('keydown', e => {
+  if ((e.key === 'Enter' || e.key === ' ') && !e.target.closest('.dv')){ const b = e.target.closest('[data-k]'); if (b){ e.preventDefault(); toggleDisp(b.dataset.k); } }
+});
+document.getElementById('disp-grid').addEventListener('change', e => {
+  const inp = e.target.closest('.dv'); if (!inp) return;
+  const k = inp.closest('[data-k]').dataset.k, v = num(inp.value);
+  if (v == null || v <= 0) delete vals[k]; else vals[k] = Math.round(v * 100) / 100;
+  hideSugg(); render();
+});
+document.getElementById('disp-cols').addEventListener('click', e => {
+  const c = e.target.closest('[data-col]'); if (!c) return;
+  curCol = c.dataset.col; document.getElementById('disp-q').value = ''; document.getElementById('disp-msg').textContent = ''; renderDisp();
 });
 ['disp-q', 'disp-only'].forEach(id => document.getElementById(id).addEventListener('input', renderDisp));
-document.getElementById('disp-clear').addEventListener('click', () => { setDisp(new Set()); document.getElementById('disp-msg').textContent = ''; hideSugg(); render(); });
-// «Pegar números»: acepta «012, 047, 88 131», con o sin ceros, y códigos Classic como «BS 58».
+document.getElementById('disp-clear').addEventListener('click', () => {
+  const col = new Set(current().keys), disp = dispSet();                  // solo la colección que se está viendo
+  [...disp].forEach(k => { if (col.has(k)) disp.delete(k); });
+  setDisp(disp); document.getElementById('disp-msg').textContent = ''; hideSugg(); render();
+});
+// «Pegar números» de la colección que se está viendo: «012, 047, 88 131», con o sin ceros, y códigos como «BS 58» o «TG16».
+// Si un número tiene varias versiones en Cardmarket (V1, V2…), marca la primera y lo avisa.
 function markPasted(){
   const inp = document.getElementById('disp-paste'), text = inp.value.trim(); if (!text) return;
-  const byNum = new Map(COL.map(k => [numKey(ITEMS[k].num), k]));
+  const byNum = new Map(), versions = new Map();
+  current().keys.forEach(k => { const n = numKey(ITEMS[k].num); if (!n) return; versions.set(n, (versions.get(n) || 0) + 1); if (!byNum.has(n)) byNum.set(n, k); });
   const tokens = text.split(/[,;\n\r\t]+/).flatMap(t => /^[\d\s]+$/.test(t.trim()) ? t.trim().split(/\s+/) : [t.trim()]).filter(Boolean);
-  const disp = dispSet(), found = [], missing = [];
-  tokens.forEach(t => { const k = byNum.get(numKey(t)); if (k){ disp.add(k); found.push(t); } else missing.push(t); });
+  const disp = dispSet(), found = [], missing = [], multi = [];
+  tokens.forEach(t => { const n = numKey(t), k = byNum.get(n); if (k){ disp.add(k); found.push(t); if (versions.get(n) > 1) multi.push(t); } else missing.push(t); });
   setDisp(disp); hideSugg(); render();
-  document.getElementById('disp-msg').textContent = `Marcadas ${found.length}` + (missing.length ? ` · no encontradas: ${missing.join(', ')}` : '') + '.';
+  document.getElementById('disp-msg').textContent = `Marcadas ${found.length} en ${current().nombre}` + (missing.length ? ` · no encontradas: ${missing.join(', ')}` : '')
+    + (multi.length ? ` · con varias versiones (marcada la primera, revisa la foto): ${multi.join(', ')}` : '') + '.';
   if (!missing.length) inp.value = '';
 }
 document.getElementById('disp-mark').addEventListener('click', markPasted);
@@ -499,7 +552,7 @@ document.getElementById('cuadrar').addEventListener('click', () => {
       const after = side === 'recibo' ? (R + c.sum) - D : R - (D + c.sum);
       return `<div class="combo">
         <div class="pics">${c.cards.map(p => ITEMS[p.key].img ? `<img src="${esc(ITEMS[p.key].img)}" alt="">` : '').join('')}</div>
-        <ul>${c.cards.map(p => `<li><span>${esc(ITEMS[p.key].name)} <span class="note">${esc(ITEMS[p.key].numLabel)}${side === 'recibo' ? (ITEMS[p.key].have ? ' · ya tengo' : ' · me falta') : ''}</span></span><span class="mono">${eur(p.v)}</span></li>`).join('')}</ul>
+        <ul>${c.cards.map(p => `<li><span>${esc(ITEMS[p.key].name)} <span class="note">${esc(ITEMS[p.key].numLabel)}${side === 'recibo' ? (ITEMS[p.key].have ? ' · ya tengo' : ' · me falta') : ''}${IDIOMAS.code(ITEMS[p.key].idioma) !== 'es' ? ' · ' + IDIOMAS.name(ITEMS[p.key].idioma) : ''}</span></span><span class="mono">${eur(p.v)}</span></li>`).join('')}</ul>
         <div class="res">Suma <b class="mono">${eur(c.sum)}</b> · diferencia después: <b class="mono">${Math.abs(after) < 0.005 ? '0,00 €' : (after > 0 ? '+' : '−') + eur(Math.abs(after))}</b></div>
         <button class="btn sm ${i ? '' : 'primary'}" type="button" data-combo="${i}">Añadir</button></div>`;
     }).join('')}</div>`;
