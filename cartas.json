@@ -597,7 +597,7 @@
    "qty": 1,
    "type": "psychic",
    "tag": "ex",
-   "toploader": false,
+   "toploader": true,
    "img": "img/39.webp"
   },
   {
@@ -672,7 +672,7 @@
    "qty": 1,
    "type": "lightning",
    "tag": "Ilustración especial",
-   "toploader": false,
+   "toploader": true,
    "img": "img/44.webp"
   },
   {
@@ -1287,7 +1287,7 @@
    "qty": 1,
    "type": "colorless",
    "tag": "Ilustración especial",
-   "toploader": false,
+   "toploader": true,
    "img": "img/85.webp"
   },
   {

@@ -20,14 +20,37 @@ NOMBRE = {v: k for k, v in LANG_NOMBRE.items()}; NOMBRE['zh'] = 'Chino'
 log = lambda m: nav.log(m)
 
 
+def sesion(pg):
+    """True = sesión iniciada (la página tiene «Cerrar sesión»), False = sin sesión (formulario de login),
+    None = no se puede saber (Cloudflare u otra página)."""
+    try:
+        if nav.blocked(pg) or 'cardmarket.com' not in pg.url: return None
+        h = pg.content()
+        if 'User_Logout' in h: return True
+        if 'Iniciar sesión' in pg.title() or '/Login' in pg.url or 'User_Login' in h: return False
+    except Exception:
+        return None
+    return None
+
+def sin_sesion():
+    log('SIN SESIÓN: la sesión de Cardmarket no está iniciada. Inicia sesión en el Chrome de depuración y vuelve a lanzar «comprueba».')
+    sys.exit(3)
+
 def leer_ofertas():
     ofertas, site, total = [], 1, 1
     with sync_playwright() as p:
-        nav.PW[0] = p; pg = None
+        nav.PW[0] = p
+        # Antes de nada: ¿hay sesión? Primero en la pestaña actual (sin recargar); si no se sabe, se abre Mis ofertas una vez.
+        # Así, sin sesión se para al momento en vez de esperar como si fuera Cloudflare.
+        pg = nav.live(None)
+        estado = sesion(pg)
+        if estado is None:
+            pg = nav.goto(pg, f'{OFERTAS}?site=1'); estado = sesion(pg)
+        if estado is False: sin_sesion()
+        log('  sesión de Cardmarket iniciada' if estado else '  aviso: no se ha podido confirmar la sesión; sigo y lo vuelvo a mirar en cada página')
         while site <= total:
             pg = nav.goto(pg, f'{OFERTAS}?site={site}')
-            if 'Iniciar sesión' in pg.title() or '/Login' in pg.url:
-                log('SIN SESIÓN: inicia sesión en Cardmarket en el Chrome de depuración y vuelve a lanzar «comprueba».'); sys.exit(3)
+            if sesion(pg) is False: sin_sesion()
             h = pg.content()
             m = re.search(r'Página \d+ de (\d+)', h); total = int(m.group(1)) if m else 1
             for r in re.findall(r'<div id="stockRow\d+".*?(?=<div id="stockRow|<div class="table-footer|\Z)', h, re.S):
@@ -90,8 +113,9 @@ def cruzar(ofertas):
             P['no_en_web'].append(base); continue
         cid = str(c['id']); vistos.add(cid); s = stock.get(cid, {'precio': c['price'], 'cantidad': 0})
         info = {**base, 'id': cid, 'carta': f"{c['name']} {c['numLabel']}", 'web_cantidad': s['cantidad'], 'stock_precio': s['precio'], 'web_precio': web.get(cid, s['precio'])}
-        if any(p[2] == url for p in pendientes): P['pendientes'].append(info)
-        if s['cantidad'] == 0: P['urgente'].append(info)
+        pendiente = any(p[2] == url for p in pendientes)
+        if pendiente: P['pendientes'].append(info)      # ya avisada: no se repite como «urgente»
+        if s['cantidad'] == 0 and not pendiente: P['urgente'].append(info)
         elif s['cantidad'] != qty_cm: P['cantidad'].append(info)
         if nav.cents(s['precio']) != nav.cents(precio_cm): P['precio_stock'].append(info)
         if s['cantidad'] > 0 and nav.cents(info['web_precio']) > nav.cents(precio_cm): P['web_mayor'].append(info)
@@ -99,7 +123,7 @@ def cruzar(ofertas):
         if lang != c.get('idioma', 'es'): motivos.append(f"idioma de la oferta {NOMBRE.get(lang, lang)} ≠ {NOMBRE.get(c.get('idioma', 'es'), 'Español')} en cartas.json")
         for o in os_:
             if o['estado'] != 'NM': motivos.append(f"estado {o['estado']} (no NM)")
-            if o['precio'] and o['precio'] > 5 and 'toploader' not in o['comentario'].lower(): motivos.append(f"{o['precio']:.2f} € sin «toploader» en el comentario")
+            if o['precio'] and o['precio'] > 5 and 'toploader' not in o['comentario'].lower(): motivos.append(f"{o['precio']:.2f} € sin «toploader» en el comentario".replace('.', ','))
         if len(os_) > 1: motivos.append(f'la misma carta en {len(os_)} ofertas')
         if motivos: P['raras'].append({**info, 'motivos': sorted(set(motivos))})
     for cid, s in stock.items():

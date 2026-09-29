@@ -355,6 +355,9 @@ más de una hora: avisa a Jose antes y guarda el progreso para poder seguir si s
 - La tendencia de la guía de precios mezcla todos los idiomas: en español suele ser distinta.
 - Ofertas en el carrito de un comprador no se pueden borrar hasta que se liberan.
 - Si Cloudflare bloquea, no reintentes en bucle: para y avisa a Jose.
+- **Sesión de Cardmarket**: los scripts que la necesitan (Mis ofertas, listado masivo) comprueban **al empezar** si está iniciada
+  (la página tiene el enlace «Cerrar sesión», `User_Logout`; sin sesión sale el formulario de login). Si no lo está, **paran y avisan
+  en el momento**: no esperan como si fuera Cloudflare. Tras resolver Cloudflare la sesión a veces se cierra: vuelve a comprobarla.
 - El precio de `stock.csv` (Cardmarket) nunca se sube ni se baja en automático: las revisiones de suelo solo cambian `suelo.csv`
   (precio web) y por defecto solo hacia arriba. Ver «Precios web frente a Cardmarket».
 - No toques `config.json` a mano ni lo sobrescribas al subir archivos. Excepción: `dias_agotada` (días que una agotada se queda en su sitio)
