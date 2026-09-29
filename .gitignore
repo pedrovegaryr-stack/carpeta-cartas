@@ -2,3 +2,8 @@
 data/colecciones/progreso.log
 data/colecciones/*.tmp
 __pycache__/
+
+# Revisión nocturna del suelo: progreso, log y copia de seguridad (no se publican)
+data/revision/progreso.log
+data/revision/suelo_revision_progreso.csv
+stock_antes_revision.csv
