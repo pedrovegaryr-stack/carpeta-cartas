@@ -113,6 +113,26 @@ id;minimo;ofertas;fecha
   Mira las ofertas **en español** (`?language=4&minCondition=2`) y propón precio; **Jose decide** (suele poner precios altos a propósito).
 - Nunca publiques ni borres nada en Cardmarket por tu cuenta: Jose importa y publica.
 
+## Precios web frente a Cardmarket (regla fija)
+
+- **La web es para gente de confianza y SIEMPRE es igual o más barata que Cardmarket.**
+- **El precio de Cardmarket es el de `stock.csv`**: el de Jose, alto a propósito. **Nunca se toca en automático** (ni scripts ni
+  revisiones de suelo); solo cambia si Jose lo pide o al sincronizar con sus ofertas reales (Flujo B).
+- **Cómo sale el precio web** (lógica de `applyMode()` en `index.html`, comprobada el 29/09/2026): se parte del precio de `stock.csv`.
+  Si `config.json` tiene `"modo": "suelo"` y la carta tiene un suelo numérico en `suelo.csv` (y no se pasa del `tope`, cuando
+  `tope` > 0), se calcula `objetivo = max(minimo, redondeo_a_céntimos(suelo × (1 + porcentaje/100) + ajuste))`; si
+  `objetivo` < precio de `stock.csv`, la web muestra `objetivo` (tachando el de stock); si no, muestra el de stock.
+  Con `modo` distinto de `suelo`, la web muestra el precio de `stock.csv`. Con la configuración actual (0 %, mínimo 0,02 €, sin
+  ajuste ni tope) el precio web es **el menor entre el precio de `stock.csv` y el suelo**, así que nunca supera a Cardmarket.
+  `informe.html` calcula su columna «Precio web ahora» con la misma regla.
+- **Revisiones de suelo**: comparan **suelo NUEVO frente a suelo ANTERIOR** (`git show HEAD:suelo.csv`) y calculan el precio web
+  antes y después con la lógica de arriba (leyendo `index.html`, no de memoria). **No comparan con `stock.csv`.**
+- **Por defecto, «solo subidas»** (opción b): las cartas cuyo precio web sube (o se queda igual) toman el suelo nuevo; en las que
+  bajarían se deja la fila anterior de `suelo.csv` tal cual (suelo, ofertas y fecha). **Solo se aplican bajadas si Jose lo pide
+  expresamente** («aplica todo»).
+- En el informe de cambio de suelo, marca con **⚠ «tope»** las cartas cuyo **suelo nuevo ≥ su precio de `stock.csv`**: ahí la web ya
+  está igual que Cardmarket y quizá a Jose le interese subir el precio en Cardmarket (él decide; no se toca `stock.csv`).
+
 ## Navegador para Cardmarket (Cloudflare)
 
 Cardmarket tiene Cloudflare y bloquea navegadores automatizados. Método que funciona:
@@ -215,9 +235,22 @@ con el Python real (`C:\Users\Jose\AppData\Local\Programs\Python\Python313\pytho
 Para cada carta con cantidad > 0 en `stock.csv`: abre su `url` + `?language=N&minCondition=2` con **el idioma de la carta**
 (`N`: en 1, fr 2, de 3, es 4, it 5, zh 6, ja 7, pt 8, ko 10; está en `IDIOMAS.CM` de `idiomas.js`; los «Código Live» sin filtro de idioma), coge la oferta más barata **ignorando las del propio Jose**
 (su nombre de vendedor en Cardmarket: `USUARIO_CM = BePokemon`)
-y escribe `suelo.csv`. **Haz lo mismo con todas las `deseadas` y toda la `coleccion_30c` de `cartas.json`** (campos `suelo`, `ofertas`, `fecha`),
+y apunta el suelo nuevo. **Haz lo mismo con todas las `deseadas` y toda la `coleccion_30c` de `cartas.json`** (campos `suelo`, `ofertas`, `fecha`),
 para que `intercambio.html` tenga los valores al día (una carta que esté en varias listas se consulta una sola vez; son unas 190 páginas,
-más de una hora: avisa a Jose antes y guarda el progreso para poder seguir si salta Cloudflare). 15–20 s entre cartas. Comprueba 2–3 a mano antes de hacerlas todas. Después commit + push.
+más de una hora: avisa a Jose antes y guarda el progreso para poder seguir si salta Cloudflare). 15–20 s entre cartas. Comprueba 2–3 a mano antes de hacerlas todas.
+
+**Revisión de suelo de mi stock** (también «revisión de suelo»; sigue la sección «Precios web frente a Cardmarket»):
+1. Lee los suelos: desatendido con `python -X utf8 data/revision/revisar_suelo.py` (Python real, en segundo plano; reanudable, 30–40 s
+   entre páginas, reutiliza suelos de hoy o ayer en el mismo idioma, pausa por Cloudflare como en «Navegador»). **Sin `--subir-stock`**:
+   así solo escribe `suelo.csv` y su informe; `stock.csv` y `cartas.json` no se tocan. `--subir-stock` solo si Jose lo pide expresamente.
+2. Compara `git show HEAD:suelo.csv` (anterior) con el `suelo.csv` nuevo y calcula para cada carta con stock el precio web antes y
+   después con la lógica de `applyMode()` de `index.html` (léela) y `config.json`.
+3. Informe en el chat y en `Descargas\cambio_suelo_AAAA-MM-DD.html` (fotos incrustadas): 🟢 SUBE (suelo anterior con su fecha, suelo
+   nuevo, precio web antes → después, diferencia en € y × cantidad; arriba el total que gana la web), 🟡 IGUAL (cuántas),
+   🔴 BAJA (lo mismo que SUBE). Marca con ⚠ «tope» las que tienen suelo nuevo ≥ precio de `stock.csv`.
+4. Aplica por defecto **solo subidas**: en las 🔴 restaura en `suelo.csv` su fila de `HEAD`. Comprueba después con la misma lógica que
+   no baja ningún precio web. Bajadas, solo si Jose lo pide.
+5. Resumen para Jose y **commit + push solo tras su «sí»**. Nunca se toca `stock.csv`, `config.json` ni Cardmarket.
 
 **Cómo leer el suelo de una carta** (también para el modo «suelo» del Flujo A):
 - **No pulses «Mostrar más resultados».** Las ofertas vienen ordenadas de más barata a más cara: el suelo es la **primera oferta
@@ -287,6 +320,8 @@ más de una hora: avisa a Jose antes y guarda el progreso para poder seguir si s
 - La tendencia de la guía de precios mezcla todos los idiomas: en español suele ser distinta.
 - Ofertas en el carrito de un comprador no se pueden borrar hasta que se liberan.
 - Si Cloudflare bloquea, no reintentes en bucle: para y avisa a Jose.
+- El precio de `stock.csv` (Cardmarket) nunca se sube ni se baja en automático: las revisiones de suelo solo cambian `suelo.csv`
+  (precio web) y por defecto solo hacia arriba. Ver «Precios web frente a Cardmarket».
 - No toques `config.json` a mano ni lo sobrescribas al subir archivos. Excepción: `dias_agotada` (días que una agotada se queda en su sitio)
   y `colecciones_holo` (colecciones en las que todas las cartas son holo; ahora `["30th Celebration"]`)
   se pueden cambiar a mano; `api/modo.js` conserva los campos que no gestiona. Haz `git pull` antes, por si el botón lo acaba de cambiar.

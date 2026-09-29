@@ -1,8 +1,10 @@
 # Revisión nocturna del suelo de todo el stock y subida de precios (nunca bajar). Solo LEE Cardmarket.
 #   python -X utf8 data/revision/revisar_suelo.py
 # Progreso carta a carta en data/revision/suelo_revision_progreso.csv (reanudable) y log en data/revision/progreso.log.
-# Al terminar: copia stock_antes_revision.csv, sube precios en stock.csv y cartas.json, actualiza suelo.csv y deja en Descargas
-# el CSV de subidas para Cardmarket (+ pasos .txt) y el informe (HTML con fotos + CSV). No hace commit ni toca config.json.
+# Al terminar: actualiza suelo.csv y deja en Descargas el informe (HTML con fotos + CSV) y el CSV de subidas PROPUESTAS para
+# Cardmarket (+ pasos .txt). NO toca stock.csv ni cartas.json (el precio de Cardmarket nunca se cambia en automático, ver
+# «Precios web frente a Cardmarket» en CLAUDE.md), salvo con --subir-stock y solo si Jose lo pide expresamente.
+# No hace commit ni toca config.json.
 import base64, csv, html, json, os, random, re, shutil, subprocess, sys, time, traceback, urllib.request
 from datetime import datetime, timedelta
 from playwright.sync_api import sync_playwright
@@ -24,6 +26,7 @@ HOY = datetime.now()
 FECHA = HOY.strftime('%d/%m/%Y')
 AYER = (HOY - timedelta(days=1)).strftime('%d/%m/%Y')
 STATS = {'bloqueos': 0, 'pausas': 0}
+SUBIR_STOCK = '--subir-stock' in sys.argv          # por defecto NO se toca stock.csv
 
 
 def log(msg):
@@ -205,7 +208,7 @@ def aplicar_y_generar(stock_rows, header, cards):
     prog = load_progress()
     stock_path = os.path.join(ROOT, 'stock.csv')
     backup = os.path.join(ROOT, 'stock_antes_revision.csv')
-    if not os.path.exists(backup):              # si se relanza, la copia sigue siendo la del stock original
+    if SUBIR_STOCK and not os.path.exists(backup):              # si se relanza, la copia sigue siendo la del stock original
         shutil.copyfile(stock_path, backup); log('Copia de seguridad: stock_antes_revision.csv')
     filas = []                                   # una por carta revisada, con su clasificación
     nuevos = {}                                  # id -> precio nuevo
@@ -238,22 +241,27 @@ def aplicar_y_generar(stock_rows, header, cards):
                     f['raro'] = f'suelo {eur(s)} frente a mi precio {eur(precio)} (x{s / precio:.1f}): ¿otra versión de la carta?'.replace('x', '×', 1)
         filas.append(f)
 
-    # stock.csv: solo cambia el precio de las que suben (mismo formato y saltos de línea)
+    # stock.csv y cartas.json: solo con --subir-stock (si no, las subidas quedan como propuesta en el informe y el CSV)
+    if not SUBIR_STOCK:
+        log(f'stock.csv y cartas.json sin tocar (sin --subir-stock): {len(nuevos)} subidas quedan como propuesta')
+        nuevos_aplicar = {}
+    else:
+        nuevos_aplicar = nuevos
     raw = open(stock_path, encoding='utf-8', newline='').read(); nl = '\r\n' if '\r\n' in raw else '\n'
     out = []
     for line in raw.split(nl):
         p = line.split(';')
-        if p and p[0] in nuevos: p[2] = f'{nuevos[p[0]]:.2f}'; line = ';'.join(p)
+        if p and p[0] in nuevos_aplicar: p[2] = f'{nuevos_aplicar[p[0]]:.2f}'; line = ';'.join(p)
         out.append(line)
     open(stock_path, 'w', encoding='utf-8', newline='').write(nl.join(out))
     # cartas.json: price de las que suben
     cj = os.path.join(ROOT, 'cartas.json'); raw = open(cj, encoding='utf-8', newline='').read(); crlf = '\r\n' in raw
     d = json.loads(raw)
     for c in d['cartas']:
-        if str(c['id']) in nuevos: c['price'] = nuevos[str(c['id'])]
+        if str(c['id']) in nuevos_aplicar: c['price'] = nuevos_aplicar[str(c['id'])]
     txt = json.dumps(d, ensure_ascii=False, indent=1)
     open(cj, 'w', encoding='utf-8', newline='').write(txt.replace('\n', '\r\n') if crlf else txt)
-    log(f'Precios subidos en stock.csv y cartas.json: {len(nuevos)} cartas')
+    if SUBIR_STOCK: log(f'Precios subidos en stock.csv y cartas.json: {len(nuevos)} cartas')
     # suelo.csv: todos los suelos revisados (fecha de la lectura)
     sp = os.path.join(ROOT, 'suelo.csv'); raw = open(sp, encoding='utf-8', newline='').read(); nl = '\r\n' if '\r\n' in raw else '\n'
     lines = [l for l in raw.split(nl) if l.strip()]; idx = {l.split(';')[0]: i for i, l in enumerate(lines)}
@@ -345,13 +353,13 @@ td.ph img{{width:46px;border-radius:4px;display:block}} td.up{{color:#6fc28a;fon
 </style></head><body><div class="w">
 <h1>Revisión del suelo de mi stock</h1>
 <div class="muted">Empezó {inicio:%d/%m/%Y %H:%M} · terminó {fin:%d/%m/%Y %H:%M} · suelo = primera oferta de otro vendedor en el idioma de cada carta y NM (códigos sin filtro de idioma)</div>
-<div class="kpis"><div class="k"><small>Cartas revisadas</small><b>{len(filas)}</b></div><div class="k g"><small>🟢 Suben de precio</small><b>{len(sube)}</b></div>
+<div class="kpis"><div class="k"><small>Cartas revisadas</small><b>{len(filas)}</b></div><div class="k g"><small>🟢 {"Suben de precio" if SUBIR_STOCK else "Subidas propuestas"}</small><b>{len(sube)}</b></div>
 <div class="k"><small>🟢 Suelo por encima</small><b>{len(enc)}</b></div><div class="k"><small>🟡 Suelo igual</small><b>{len(igual)}</b></div><div class="k"><small>🔴 Suelo por debajo</small><b>{len(deb)}</b></div>
 <div class="k"><small>⚪ Sin competencia / sin leer</small><b>{len(otras)}</b></div><div class="k"><small>Bloqueos de Cloudflare</small><b>{STATS['bloqueos']}</b><small>{STATS['pausas']} pausa(s) para resolver a mano</small></div></div>
 {"<div class=avisos><b>Para mirar:</b><ul>" + "".join(f"<li>{html.escape(f['carta'])} {html.escape(f['numero'])}: {html.escape(f['raro'])}</li>" for f in raros) + "</ul></div>" if raros else ""}
 <p class="muted">Suelos reutilizados sin visitar Cardmarket (de hoy o de ayer, mismo idioma): {len(reu)}{" — " + ", ".join(html.escape(f['carta'] + ' ' + f['numero']) for f in reu) if reu else ""}.</p>
-<h2>🟢 Suelo por encima de mi precio (subidas)</h2>
-<div class="big">Ganancia potencial total: <b>{eur(ganancia)}</b> <small>(diferencia × cantidad de las {len(sube)} cartas que suben; precio nuevo = suelo redondeado hacia abajo a 0,05 €, nunca por debajo del actual)</small></div>
+<h2>🟢 Suelo por encima de mi precio de Cardmarket {"(subidas aplicadas en stock.csv)" if SUBIR_STOCK else "(subidas PROPUESTAS para Cardmarket, no aplicadas)"}</h2>
+<div class="big">{"Ganancia potencial total" if SUBIR_STOCK else "Ganancia potencial si subes estas cartas en Cardmarket"}: <b>{eur(ganancia)}</b> <small>(diferencia × cantidad de las {len(sube)} cartas que suben; precio nuevo = suelo redondeado hacia abajo a 0,05 €, nunca por debajo del actual)</small></div>
 <table><tr><th></th><th>Carta</th><th>Cant.</th><th>Precio anterior</th><th>Suelo</th><th>Precio nuevo</th><th>Diferencia</th><th>Ganancia</th></tr>{t_enc or '<tr><td colspan=8>Ninguna</td></tr>'}</table>
 <h2>🟡 Suelo igual a mi precio</h2>
 <table><tr><th></th><th>Carta</th><th>Cant.</th><th>Mi precio</th><th>Suelo</th></tr>{t_ig or '<tr><td colspan=5>Ninguna</td></tr>'}</table>
