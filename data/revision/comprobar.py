@@ -113,9 +113,9 @@ def cruzar(ofertas):
             P['no_en_web'].append(base); continue
         cid = str(c['id']); vistos.add(cid); s = stock.get(cid, {'precio': c['price'], 'cantidad': 0})
         info = {**base, 'id': cid, 'carta': f"{c['name']} {c['numLabel']}", 'web_cantidad': s['cantidad'], 'stock_precio': s['precio'], 'web_precio': web.get(cid, s['precio'])}
-        pendiente = any(p[2] == url for p in pendientes)
-        if pendiente: P['pendientes'].append(info)      # ya avisada: no se repite como «urgente»
-        if s['cantidad'] == 0 and not pendiente: P['urgente'].append(info)
+        if any(p[2] == url for p in pendientes):
+            P['pendientes'].append(info); continue      # venta pendiente de quitar: solo sale en su sección, no se repite
+        if s['cantidad'] == 0: P['urgente'].append(info)
         elif s['cantidad'] != qty_cm: P['cantidad'].append(info)
         if nav.cents(s['precio']) != nav.cents(precio_cm): P['precio_stock'].append(info)
         if s['cantidad'] > 0 and nav.cents(info['web_precio']) > nav.cents(precio_cm): P['web_mayor'].append(info)
