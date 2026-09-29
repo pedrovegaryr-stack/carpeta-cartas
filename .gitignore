@@ -7,3 +7,5 @@ __pycache__/
 data/revision/progreso.log
 data/revision/suelo_revision_progreso.csv
 stock_antes_revision.csv
+data/revision/comprobacion.log
+data/revision/comprobacion.json

@@ -23,6 +23,8 @@ Habla con Jose en español, con pasos claros. Antes de cualquier acción irrever
 | `config.json` | Modo de precios (normal / rebajas). **No lo sobrescribas**: lo gestiona el botón de `informe.html` vía `api/modo.js`. | Botón del informe |
 | `img/<id>.webp` | Foto de cada carta. `img/w<num>.webp` = fotos de cartas deseadas. `img/30c/<código>.webp` = resto de la colección 30th Celebration. | Claude Code |
 | `data/colecciones/<codigo>.json` | Colecciones completas preparadas (`pgo` Pokémon GO en inglés, `brs` Astros Brillantes en español): `codigo`, `nombre`, `idioma`, `filtro` y `cartas` (`num`, `nombre`, `url`, `img`, `suelo`, `ofertas`, `fecha`). Fotos en `img/<codigo>/`. Las genera `data/colecciones/preparar_colecciones.py` (desatendido; log en `progreso.log`, que no se sube). | Claude Code |
+| `ventas_pendientes_cm.csv` | Ventas hechas fuera de Cardmarket («vendí el X», Flujo F) cuya oferta aún hay que quitar o bajar en Cardmarket (`fecha;carta;url;cantidad`). | Claude Code |
+| `data/revision/` | Scripts de solo lectura contra Cardmarket: `revisar_suelo.py` (revisión nocturna del suelo) y `comprobar.py` («comprueba», Flujo E). Sus logs y progreso no se suben. | Casi nunca |
 | `idiomas.js` | Banderas en SVG, nombres de idioma y la etiqueta «bandera + código» (web y, como imagen, en los PDF). Lo cargan `index.html`, `informe.html` e `intercambio.html`. | Casi nunca |
 | `api/modo.js` | Función de Vercel que edita `config.json` en GitHub (variables `GITHUB_TOKEN`, `GITHUB_REPO`). | Nunca |
 
@@ -208,6 +210,9 @@ Convertir a WebP de 380 px de ancho, calidad 78 (Pillow) y guardar como `img/<id
    - **Está en la web pero ya no en Cardmarket** → cantidad **0** en `stock.csv` (sale como «Agotada») y `agotada_desde` = fecha de hoy
      (solo si estaba vacía: no la cambies si ya estaba agotada). No la borres.
    - **Vuelve a tener stock** una agotada → cantidad nueva y `agotada_desde` vacía.
+   - **Está en `ventas_pendientes_cm.csv`** y sigue en Cardmarket → **no** le vuelvas a poner stock en la web (resta lo vendido a la
+     cantidad de Cardmarket) y avisa a Jose de que aún tiene que quitarla o bajarla allí. Cuando ya no esté en Cardmarket (o la
+     cantidad ya refleje la venta), quítala de `ventas_pendientes_cm.csv`.
    - Lo mismo si Jose dice que ha vendido una carta fuera de Cardmarket («X vendida»): cantidad 0 y `agotada_desde` = hoy.
 3. Si ha cambiado el stock, ofrece regenerar el suelo (Flujo C).
 4. Resumen para Jose: cartas nuevas, precios cambiados, agotadas, total del stock. Tras su OK: `git add -A && git commit && git push`.
@@ -311,6 +316,36 @@ más de una hora: avisa a Jose antes y guarda el progreso para poder seguir si s
     franja como siempre y, en lugar de las opciones, el bloque «Compensación en dinero» (quién paga, importe grande, desglose, método).
     Pie: «Enviado por BePokemon · Valores según el precio más bajo en Cardmarket (idioma de cada carta, NM) a fecha X». Una página.
   - La selección, el nombre, el límite, la opción elegida, las disponibles de cada persona y las opciones de dinero se guardan en el navegador (localStorage).
+
+## Flujo E — «comprueba» (web frente a Cardmarket)
+
+**Solo lectura**: no cambies nada en la web ni en Cardmarket.
+1. Lanza `python -X utf8 data/revision/comprobar.py` (Python real). Lee **todas** las páginas de `URL_MIS_OFERTAS` (como en
+   «sincroniza», 30–40 s entre páginas, misma gestión de Cloudflare que los scripts desatendidos; si pide iniciar sesión, para y
+   pídeselo a Jose). Cruza por `url` (+ idioma) con `cartas.json` y `stock.csv`, y calcula el precio web con la lógica de `applyMode()`.
+   Deja `data/revision/comprobacion.json` y `Descargas\comprobacion_AAAA-MM-DD.html` (con enlaces a la página de Mis ofertas
+   donde está cada oferta, para pulsar «Editar», y a la ficha del producto en su idioma).
+2. Enseña en el chat una tabla por cada tipo de problema, en este orden:
+   - 🔴 Vendidas fuera de Cardmarket (`ventas_pendientes_cm.csv`) que **siguen publicadas**: las primeras.
+   - 🔴 **URGENTE**: cantidad 0 en la web pero publicada en Cardmarket (me la pueden comprar y ya no la tengo).
+   - 🟠 Cantidad distinta entre la web y Cardmarket.
+   - 🟠 Precio de `stock.csv` distinto del precio real de la oferta en Cardmarket.
+   - 🟠 Precio que se ve en la web **mayor** que el de Cardmarket (rompe la regla fija; menor es lo normal).
+   - 🟡 Con stock en la web pero no publicada en Cardmarket.
+   - 🟡 Publicada en Cardmarket pero no está en la web.
+   - 🟡 Ofertas raras: idioma distinto del de `cartas.json`, estado distinto de NM, carta de más de 5 € sin «toploader» en el
+     comentario, o la misma carta en dos ofertas.
+3. Si todo cuadra, dilo en una línea.
+4. Pregunta a Jose qué quiere arreglar. **Nunca borres ni cambies nada en Cardmarket** (lo hace él); en la web, solo lo que confirme.
+
+## Flujo F — «vendí el X» (venta fuera de Cardmarket, por sus grupos)
+
+1. Busca la carta por nombre o número. Si hay varias posibles (versiones, idiomas, colecciones), pregunta cuál.
+2. Resta la cantidad vendida en `stock.csv` (1 si no dice nada). Si queda en 0, pon `agotada_desde` = hoy.
+3. Apúntala en `ventas_pendientes_cm.csv` (`fecha;carta;url;cantidad`) y dale el enlace de su oferta en Cardmarket
+   (página de `URL_MIS_OFERTAS` donde está, o la ficha del producto) para quitarla o bajar la cantidad.
+4. **Commit y push sin preguntar** (como «ya tengo el X»).
+5. En «sincroniza» (Flujo B) y en «comprueba» (Flujo E) se tienen en cuenta las pendientes (ver esos flujos).
 
 ---
 
